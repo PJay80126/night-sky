@@ -1,4 +1,4 @@
-const CACHE = 'night-sky-v11';
+const CACHE = 'night-sky-v12';
 const ASSETS = [
   '.',
   'index.html',
