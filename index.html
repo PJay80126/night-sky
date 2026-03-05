@@ -254,6 +254,8 @@
     text-align: center; padding: 16px 0; }
   .planets-date { font-size: 0.78rem; color: var(--text-dim); font-style: italic;
     text-align: right; margin-bottom: 10px; }
+  .sun-date { font-size: 0.78rem; color: var(--text-dim);
+    text-align: right; margin-bottom: 10px; }
 
   .footer { text-align:center; font-size:0.8rem; color:var(--text-dim); font-style:italic; margin-top:10px; opacity:0.6; }
 
@@ -1149,8 +1151,8 @@ function renderPlanets() {
   
   let listHTML = `
     <div class="planets-date">Times in ${tzLabel} &middot; ${now.toLocaleDateString('en-CA',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
-    <div class="planets-date" style="margin-top:4px">🌅 Sunset ${fmtTime(sunset)} \u00a0·\u00a0 🌑 Dark ${fmtTime(nightStart)}</div>
-    <div class="planets-date" style="margin-top:2px">🌄 Dawn ${fmtTime(nightEnd)} \u00a0·\u00a0 🌞 Sunrise ${fmtTime(sunrise)}</div>`;
+    <div class="sun-date" style="margin-top:4px">🌅 Sunset ${fmtTime(sunset)} \u00a0·\u00a0 🌑 Dark ${fmtTime(nightStart)}</div>
+    <div class="sun-date" style="margin-top:2px">🌄 Dawn ${fmtTime(nightEnd)} \u00a0·\u00a0 🌞 Sunrise ${fmtTime(sunrise)}</div>`;
   
   const visiblePlanets = []; // planets that are up during 18:00-06:00
 
