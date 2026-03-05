@@ -1365,6 +1365,38 @@ function drawAltitudeGraph(datasets, STEPS) {
     }
   }
 
+  // Dawn / dusk twilight lines
+  const { nightStart, nightEnd } = getNightWindow(today());
+  const midnight = new Date(today()); midnight.setHours(0,0,0,0);
+
+  for (const { time, label } of [
+    { time: nightStart, label: 'Dark' },
+    { time: nightEnd,   label: 'Dawn' },
+  ]) {
+    if (!time) continue;
+    const h = time.getHours() + time.getMinutes() / 60;
+    const hNorm = h < 6 ? h + 24 : h;
+    if (hNorm < H_START || hNorm > H_END) continue;
+
+    const x = PAD_L + ((hNorm - H_START) / (H_END - H_START)) * gW;
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(100,160,255,0.4)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x, PAD_T);
+    ctx.lineTo(x, PAD_T + gH);
+    ctx.stroke();
+    ctx.restore();
+
+    // Label
+    ctx.fillStyle = 'rgba(100,160,255,0.7)';
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = label === 'Dark' ? 'left' : 'right';
+    ctx.fillText(label, x + (label === 'Dark' ? 3 : -3), PAD_T + 10);
+  }
+
   // Current time vertical bar
   const now = new Date();
   const tz  = getTimezoneOffset(today());
