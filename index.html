@@ -1036,20 +1036,74 @@ function getTimezoneOffset(date) {
   return (date >= dstStart && date < dstEnd) ? -4 : -5;
 }
 
+
+// Determine sunrise and sunset
+function getSunsetTime(date) {
+  const midnight = new Date(date); midnight.setHours(0, 0, 0, 0);
+  const observer = new Astronomy.Observer(OBS_LAT, OBS_LON, 0);
+  try {
+    return Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, -1, midnight, 1)?.date;
+  } catch(e) { return null; }
+}
+function getSunriseTime(date) {
+  const midnight = new Date(date); midnight.setHours(0, 0, 0, 0);
+  const observer = new Astronomy.Observer(OBS_LAT, OBS_LON, 0);
+  try {
+    return Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, +1, midnight, 1)?.date;
+  } catch(e) { return null; }
+}
+
 // Determine visibility quality based on transit time and horizon
-function getVisibility(rts) {
+function getVisibility(rts, planetName, date) {
   if (rts.neverRises) return { label: 'Below Horizon', cls: 'badge-below' };
   if (rts.alwaysUp)   return { label: 'Circumpolar',   cls: 'badge-good' };
 
-  // Parse transit time to check if it's in a reasonable night window
-  const [h] = rts.transit.split(':').map(Number);
-  // Good: transits between 20:00-02:00 (8pm-2am)
-  if (h >= 20 || h <= 2)  return { label: 'Good Tonight', cls: 'badge-good' };
-  // Ok: transits between 17:00-20:00 or 02:00-06:00
-  if (h >= 17 || h <= 6)  return { label: 'Visible',      cls: 'badge-ok' };
-  // Poor: transits during daytime
-  return { label: 'Daytime Sky', cls: 'badge-poor' };
+  const midnight = new Date(date); midnight.setHours(0, 0, 0, 0);
+  const { nightStart, nightEnd, noTrueDark } = getNightWindow(date);
+
+  // Sample altitude every 30 min across the actual dark window
+  let peakAlt = -Infinity;
+  for (let t = new Date(nightStart); t <= nightEnd; t = new Date(t.getTime() + 30 * 60000)) {
+    try {
+      const frac = t.getHours() + t.getMinutes() / 60;
+      const alt = planetAltitude(planetName, frac, t);
+      if (alt > peakAlt) peakAlt = alt;
+    } catch(e) {}
+  }
+
+  if (noTrueDark)      return { label: 'No Dark Sky',   cls: 'badge-poor' };
+  if (peakAlt >= 30)   return { label: 'Prime Viewing', cls: 'badge-good' };
+  if (peakAlt >= 15)   return { label: 'Visible',       cls: 'badge-ok'   };
+  if (peakAlt >  0)    return { label: 'Low Sky',       cls: 'badge-poor' };
+  return                { label: 'Below Horizon',       cls: 'badge-below' };
 }
+
+
+// Get actual darkness window for tonight
+function getNightWindow(date) {
+  const midnight = new Date(date); midnight.setHours(0, 0, 0, 0);
+  const observer = new Astronomy.Observer(OBS_LAT, OBS_LON, 0);
+
+  // Astronomical twilight end (Sun at -18°) — true darkness begins
+  let darkStart = null;
+  try {
+    darkStart = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, -1, midnight, 1, -18)?.date;
+  } catch(e) {}
+
+  // Astronomical twilight start next morning
+  let darkEnd = null;
+  try {
+    const searchFrom = darkStart ?? new Date(midnight.getTime() + 20 * 3600000);
+    darkEnd = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, +1, searchFrom, 1, -18)?.date;
+  } catch(e) {}
+
+  // Fallbacks if twilight calc fails (e.g. midsummer high latitudes — no true dark)
+  const nightStart = darkStart ?? new Date(midnight.getTime() + 18 * 3600000);
+  const nightEnd   = darkEnd   ?? new Date(midnight.getTime() + 30 * 3600000);
+
+  return { nightStart, nightEnd, noTrueDark: !darkStart || !darkEnd };
+}
+
 
 // ─── Render planets ───────────────────────────────────────────────────────────
 
@@ -1082,14 +1136,28 @@ function renderPlanets() {
   const tzLabel = new Date().toLocaleDateString('en-CA', {timeZoneName:'short'}).split(', ')[1] || 'Local';
 
   // Build planet list rows
-  let listHTML = `<div class="planets-date">Times in ${tzLabel} &middot; ${now.toLocaleDateString('en-CA',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>`;
-
+  const sunset   = getSunsetTime(now);
+  const sunrise  = getSunriseTime(now);
+  const { nightStart, nightEnd } = getNightWindow(now);
+  
+  const fmtTime = d => {
+    if (!d) return '—';
+    const time = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
+    const day  = d.toLocaleDateString([], {weekday:'short'});
+    return `${time} <span style="font-size:0.7em;opacity:0.6">${day}</span>`;
+  };
+  
+  let listHTML = `
+    <div class="planets-date">Times in ${tzLabel} &middot; ${now.toLocaleDateString('en-CA',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+    <div class="planets-date" style="margin-top:4px">🌅 Sunset ${fmtTime(sunset)} \u00a0·\u00a0 🌑 Dark ${fmtTime(nightStart)}</div>
+    <div class="planets-date" style="margin-top:2px">🌄 Dawn ${fmtTime(nightEnd)} \u00a0·\u00a0 🌞 Sunrise ${fmtTime(sunrise)}</div>`;
+  
   const visiblePlanets = []; // planets that are up during 18:00-06:00
 
   let delay = 0;
   for (const planet of PLANETS) {
     const rts = getPlanetRiseTransitSet(planet.name, now);
-    const vis = getVisibility(rts);
+    const vis = getVisibility(rts, planet.name, now);
 
     let timesHTML;
     if (rts.neverRises) {
@@ -1102,8 +1170,7 @@ function renderPlanets() {
       // Check if planet is up at any point between 18:00-06:00
       const riseTime    = Astronomy.SearchRiseSet(Astronomy.Body[planet.name], new Astronomy.Observer(OBS_LAT, OBS_LON, 0), +1, midnight, 1)?.date;
       const setTime     = Astronomy.SearchRiseSet(Astronomy.Body[planet.name], new Astronomy.Observer(OBS_LAT, OBS_LON, 0), -1, midnight, 1)?.date;
-      const nightStart  = new Date(midnight.getTime() + 18 * 3600000); // 18:00
-      const nightEnd    = new Date(midnight.getTime() + 30 * 3600000); // 06:00 next day
+      const { nightStart, nightEnd } = getNightWindow(now);
       const upDuringNight = (riseTime && riseTime < nightEnd) || (setTime && setTime > nightStart);
       if (upDuringNight) visiblePlanets.push(planet);
     }
