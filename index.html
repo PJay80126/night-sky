@@ -259,6 +259,122 @@
 
   .footer { text-align:center; font-size:0.8rem; color:var(--text-dim); font-style:italic; margin-top:10px; opacity:0.6; }
 
+  /* ── Sky Events tab ──────────────────────────────────────────── */
+  .events-filter {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 20px; padding: 0 2px;
+  }
+  .filter-chip {
+    font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.12em;
+    text-transform: uppercase; padding: 6px 14px; border-radius: 20px;
+    border: 1px solid rgba(201,168,76,0.25); background: rgba(201,168,76,0.06);
+    color: var(--text-dim); cursor: pointer; transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .filter-chip.active, .filter-chip:hover {
+    background: rgba(201,168,76,0.18); border-color: rgba(201,168,76,0.6);
+    color: var(--gold-light);
+  }
+
+  .events-month {
+    font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.2em;
+    color: var(--gold-dim); text-transform: uppercase;
+    padding: 6px 4px 6px; margin-top: 8px;
+    border-bottom: 1px solid rgba(201,168,76,0.1);
+    margin-bottom: 4px;
+  }
+
+  .event-card {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: var(--surface); border: 1px solid rgba(201,168,76,0.12);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
+    position: relative; overflow: hidden;
+    animation: fadeIn 0.35s ease forwards; opacity: 0;
+    transition: border-color 0.2s;
+  }
+  .event-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(201,168,76,0.2), transparent);
+  }
+  .event-card.soon {
+    border-color: rgba(201,168,76,0.45);
+    background: linear-gradient(135deg, var(--surface), rgba(201,168,76,0.05));
+  }
+  .event-card.soon::before {
+    background: linear-gradient(90deg, transparent, rgba(201,168,76,0.5), transparent);
+  }
+  .event-card.today {
+    border-color: rgba(76,175,122,0.6);
+    background: linear-gradient(135deg, var(--surface), rgba(76,175,122,0.06));
+  }
+  .event-card.today::before {
+    background: linear-gradient(90deg, transparent, rgba(76,175,122,0.5), transparent);
+  }
+
+  .event-icon-wrap {
+    width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; background: rgba(201,168,76,0.08);
+    border: 1px solid rgba(201,168,76,0.2);
+  }
+  .event-card.today .event-icon-wrap {
+    background: rgba(76,175,122,0.1); border-color: rgba(76,175,122,0.3);
+  }
+
+  .event-body { flex: 1; min-width: 0; }
+  .event-title {
+    font-family: 'Cinzel', serif; font-size: 0.85rem; color: var(--gold-light);
+    letter-spacing: 0.04em; margin-bottom: 3px;
+  }
+  .event-card.today .event-title { color: #4cef9a; }
+  .event-desc {
+    font-size: 0.82rem; color: var(--text-dim); font-style: italic;
+    line-height: 1.45; margin-bottom: 5px;
+  }
+  .event-meta {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .event-date {
+    font-family: 'Cinzel', serif; font-size: 0.68rem; letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+  .event-badge {
+    font-family: 'Cinzel', serif; font-size: 0.6rem; letter-spacing: 0.1em;
+    padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
+  }
+  .badge-tonight { background: rgba(76,175,122,0.15); color: #4caf7a; border: 1px solid rgba(76,175,122,0.3); }
+  .badge-soon    { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+  .badge-upcoming{ background: rgba(100,120,180,0.15); color: #8899cc; border: 1px solid rgba(100,120,180,0.25); }
+
+  .event-countdown {
+    font-size: 0.78rem; color: var(--gold); font-style: normal;
+    white-space: nowrap; flex-shrink: 0; text-align: right;
+    font-family: 'Cinzel', serif; letter-spacing: 0.05em;
+    align-self: center;
+  }
+  .event-countdown.now { color: #4caf7a; }
+
+  .event-visibility {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 6px; font-size: 0.78rem; font-style: normal;
+  }
+  .vis-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  }
+  .vis-dot.good   { background: #4caf7a; box-shadow: 0 0 5px #4caf7a; }
+  .vis-dot.warn   { background: var(--gold); box-shadow: 0 0 5px var(--gold); }
+  .vis-dot.poor   { background: #c97c7c; box-shadow: 0 0 5px #c97c7c; }
+  .vis-dot.info   { background: #8899cc; box-shadow: 0 0 5px #8899cc; }
+  .vis-text.good  { color: #4caf7a; }
+  .vis-text.warn  { color: var(--gold-light); }
+  .vis-text.poor  { color: #c97c7c; }
+  .vis-text.info  { color: #8899cc; }
+
+  .events-location-note {
+    font-size: 0.78rem; color: var(--text-dim); font-style: italic;
+    text-align: center; padding: 10px 0 18px;
+  }
+
   @media(max-width:480px) {
     h1 { font-size:1.4rem; }
     .qday-number { font-size:3.5rem; }
@@ -280,6 +396,10 @@
     <button class="tab-btn" id="tab-planets" onclick="switchTab('planets')">
       <span class="tab-icon">🪐</span>
       <span class="tab-label">Planets</span>
+    </button>
+    <button class="tab-btn" id="tab-events" onclick="switchTab('events')">
+      <span class="tab-icon">✨</span>
+      <span class="tab-label">Events</span>
     </button>
   </div>
 
@@ -389,6 +509,30 @@
       <p class="no-targets">Calculating planetary positions&hellip;</p>
     </div>
   </div>
+
+  </div>
+
+  <!-- Events tab -->
+  <div class="tab-panel" id="panel-events">
+
+    <div class="moon-header" style="margin-bottom:20px">
+      <div style="font-size:3rem;line-height:1;filter:drop-shadow(0 0 16px rgba(201,168,76,0.5))">✨</div>
+      <h1 style="margin-top:14px">Sky Events</h1>
+      <p class="subtitle">Upcoming celestial highlights</p>
+    </div>
+
+    <!-- Filter chips -->
+    <div class="events-filter" id="eventsFilter">
+      <button class="filter-chip active" data-filter="all" onclick="filterEvents('all',this)">All</button>
+      <button class="filter-chip" data-filter="planet" onclick="filterEvents('planet',this)">Planets</button>
+      <button class="filter-chip" data-filter="lunar" onclick="filterEvents('lunar',this)">Lunar</button>
+      <button class="filter-chip" data-filter="meteor" onclick="filterEvents('meteor',this)">Meteor</button>
+      <button class="filter-chip" data-filter="solar" onclick="filterEvents('solar',this)">Solar</button>
+    </div>
+
+    <div id="eventsBody">
+      <p class="no-targets" style="padding:30px 0">Calculating sky events…</p>
+    </div>
 
   </div>
 
@@ -1436,6 +1580,408 @@ function drawAltitudeGraph(datasets, STEPS) {
 render();
 
 
+// ── Sky Events ────────────────────────────────────────────────────────────────
+
+let _allEvents = [];
+let _eventsLoaded = false;
+let _activeFilter = 'all';
+
+// Fixed meteor shower calendar
+const METEOR_SHOWERS = [
+  { name: 'Quadrantids',   peak: [1,4],  zhr: 120, desc: 'Strong but brief peak, blue/yellow meteors' },
+  { name: 'Lyrids',        peak: [4,22], zhr: 18,  desc: 'Swift meteors, occasional fireballs' },
+  { name: 'Eta Aquariids', peak: [5,6],  zhr: 50,  desc: 'Fast meteors, fragments of Halley\'s Comet' },
+  { name: 'Perseids',      peak: [8,12], zhr: 100, desc: 'Reliable summer shower, swift bright meteors' },
+  { name: 'Orionids',      peak: [10,21],zhr: 20,  desc: 'Fast meteors from Halley\'s Comet' },
+  { name: 'Leonids',       peak: [11,17],zhr: 15,  desc: 'Very fast meteors, potential storm years' },
+  { name: 'Geminids',      peak: [12,14],zhr: 120, desc: 'Best annual shower, colourful slow meteors' },
+  { name: 'Ursids',        peak: [12,22],zhr: 10,  desc: 'Quiet shower coinciding with winter solstice' },
+];
+
+// Planet colours matching existing palette
+const PLANET_COLORS = {
+  Mercury:'#b0a090', Venus:'#e8d898', Mars:'#e08060',
+  Jupiter:'#c8b080', Saturn:'#d8c898', Uranus:'#90d8d8', Neptune:'#7090e0'
+};
+const PLANET_ICONS = {
+  Mercury:'☿', Venus:'♀', Mars:'♂', Jupiter:'♃', Saturn:'♄', Uranus:'⛢', Neptune:'♆'
+};
+
+function computeSkyEvents() {
+  const events = [];
+  const now    = today(); // midnight — consistent with Moon tab
+  const end    = new Date(now.getTime() + 90 * 86400000); // 90 days ahead
+
+  // ── 1. Moon phases ──────────────────────────────────────────────
+  let mq = Astronomy.SearchMoonQuarter(new Date()); // search from real now so we don't re-include passed quarters
+  for (let i = 0; i < 30; i++) {
+    if (mq.time.date > end) break;
+    const d = mq.time.date;
+    if (d >= now) {
+      const names = ['New Moon','First Quarter','Full Moon','Third Quarter'];
+      const icons = ['🌑','🌓','🌕','🌗'];
+      const descs = [
+        'Moon between Earth and Sun — dark skies, ideal for deep sky',
+        'Half-lit Moon — Q-Day 0, prime lunar observing begins',
+        'Fully illuminated — dramatic naked-eye view, poor for detail',
+        'Last quarter — late-night and dawn lunar observing'
+      ];
+      events.push({ date:d, title:names[mq.quarter], icon:icons[mq.quarter],
+        desc:descs[mq.quarter], type:'lunar', key:'lunar-'+i });
+    }
+    mq = Astronomy.NextMoonQuarter(mq);
+  }
+
+  // ── 2. Oppositions (outer planets) ─────────────────────────────
+  const outerPlanets = ['Mars','Jupiter','Saturn','Uranus','Neptune'];
+  for (const pname of outerPlanets) {
+    try {
+      // SearchRelativeLongitude(body, targetLon, startDate)
+      // 0° = conjunction, 180° = opposition
+      let search = new Date(now.getTime() - 10 * 86400000);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const opp = Astronomy.SearchRelativeLongitude(Astronomy.Body[pname], 180, search);
+        if (!opp) break;
+        const d = opp.time.date;
+        if (d > end) break;
+        if (d >= now) {
+          const icon = PLANET_ICONS[pname];
+          events.push({ date:d, title:`${pname} at Opposition`, icon,
+            desc:`${pname} rises at sunset and is visible all night — largest and brightest of the year`,
+            type:'planet', key:'opp-'+pname });
+        }
+        search = new Date(d.getTime() + 30 * 86400000);
+      }
+    } catch(e) {}
+  }
+
+  // ── 3. Greatest Elongations (Mercury & Venus) ───────────────────
+  for (const pname of ['Mercury','Venus']) {
+    try {
+      let search = new Date(now.getTime() - 5 * 86400000);
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const el = Astronomy.SearchMaxElongation(Astronomy.Body[pname], search);
+        if (!el) break;
+        const d = el.time.date;
+        if (d > end) break;
+        if (d >= now) {
+          const dir = el.elongation > 0 ? 'Evening' : 'Morning';
+          const deg = Math.abs(el.elongation).toFixed(1);
+          events.push({ date:d, title:`${pname} Greatest Elongation`, icon: PLANET_ICONS[pname],
+            desc:`${pname} reaches maximum separation from the Sun (${deg}°) — best ${dir.toLowerCase()} sky visibility`,
+            type:'planet', key:'elong-'+pname+attempt });
+        }
+        search = new Date(d.getTime() + 20 * 86400000);
+      }
+    } catch(e) {}
+  }
+
+  // ── 4. Conjunctions between bright planets ──────────────────────
+  // Check all pairs of bright planets for close approaches (< 3°)
+  const conjPairs = [
+    ['Venus','Mars'],['Venus','Jupiter'],['Venus','Saturn'],
+    ['Mars','Jupiter'],['Mars','Saturn'],['Jupiter','Saturn']
+  ];
+  for (const [a, b] of conjPairs) {
+    try {
+      for (let dayOffset = 0; dayOffset < 90; dayOffset += 3) {
+        const d = new Date(now.getTime() + dayOffset * 86400000);
+        if (d > end) break;
+        const obsNull = new Astronomy.Observer(0, 0, 0); // geocentric
+        const eqA = Astronomy.Equator(Astronomy.Body[a], d, obsNull, false, true);
+        const eqB = Astronomy.Equator(Astronomy.Body[b], d, obsNull, false, true);
+        // Angular separation (RA/Dec in degrees)
+        const dRa  = (eqA.ra  - eqB.ra)  * 15; // RA is in hours
+        const dDec = (eqA.dec - eqB.dec);
+        const sep  = Math.sqrt(dRa * dRa + dDec * dDec);
+        if (sep < 2.5) {
+          // Check we haven't already added this pair nearby
+          const alreadyAdded = events.some(e =>
+            e.key === 'conj-'+a+b &&
+            Math.abs(e.date - d) < 5 * 86400000
+          );
+          if (!alreadyAdded) {
+            events.push({ date:d, title:`${a} & ${b} Conjunction`, icon:'🌟',
+              desc:`${a} and ${b} appear just ${sep.toFixed(1)}° apart in the sky — striking in binoculars`,
+              type:'planet', key:'conj-'+a+b });
+          }
+        }
+      }
+    } catch(e) {}
+  }
+
+  // ── 5. Meteor showers ───────────────────────────────────────────
+  const yr = now.getFullYear();
+  for (const shower of METEOR_SHOWERS) {
+    const [mo, da] = shower.peak;
+    // Try this year and next year
+    for (const y of [yr, yr + 1]) {
+      const peakDate = new Date(y, mo - 1, da);
+      if (peakDate >= now && peakDate <= end) {
+        events.push({ date:peakDate, title:`${shower.name} Meteor Shower`, icon:'☄️',
+          desc:`Peak: up to ${shower.zhr} meteors/hr (ZHR). ${shower.desc}`,
+          type:'meteor', key:'meteor-'+shower.name+y });
+      }
+    }
+  }
+
+  // ── 6. Solstices & Equinoxes ────────────────────────────────────
+  const seasons = ['Spring Equinox','Summer Solstice','Autumn Equinox','Winter Solstice'];
+  const seasonIcons = ['🌱','☀️','🍂','❄️'];
+  const seasonDescs = [
+    'Equal day and night — Sun crosses celestial equator northward',
+    'Longest day of the year — Sun reaches its highest point',
+    'Equal day and night — Sun crosses celestial equator southward',
+    'Shortest day of the year — longest nights for observing'
+  ];
+  for (let y = yr; y <= yr + 1; y++) {
+    for (let q = 0; q < 4; q++) {
+      try {
+        const s = Astronomy.Seasons(y);
+        const dates = [s.mar_equinox, s.jun_solstice, s.sep_equinox, s.dec_solstice];
+        const d = dates[q].date;
+        if (d >= now && d <= end) {
+          events.push({ date:d, title:seasons[q], icon:seasonIcons[q],
+            desc:seasonDescs[q], type:'solar', key:'season-'+y+q });
+        }
+      } catch(e) {}
+    }
+  }
+
+  // ── Sort by date ────────────────────────────────────────────────
+  events.sort((a, b) => a.date - b.date);
+  return events;
+}
+
+function filterEvents(filter, chipEl) {
+  _activeFilter = filter;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  chipEl.classList.add('active');
+  renderEventsList();
+  // Re-apply visibility if location already known
+  if (OBS_LAT !== null && OBS_LON !== null) {
+    requestAnimationFrame(() => enrichEventsWithVisibility());
+  }
+}
+
+function renderEventsList() {
+  const body   = document.getElementById('eventsBody');
+  const now    = today(); // midnight — consistent with Moon tab's daysBetween logic
+  const events = _activeFilter === 'all'
+    ? _allEvents
+    : _allEvents.filter(e => e.type === _activeFilter);
+
+  if (events.length === 0) {
+    body.innerHTML = '<p class="no-targets" style="padding:30px 0">No events of this type in the next 90 days.</p>';
+    return;
+  }
+
+  let html = '<div id="eventsLocationNote" class="events-location-note" style="display:none">📍 Enable location for visibility info</div>';
+  let lastMonth = '';
+  let delay = 0;
+
+  for (const ev of events) {
+    const diffDays = Math.ceil((ev.date - now) / 86400000);
+    const isToday  = diffDays <= 0;
+    const isSoon   = diffDays <= 7 && diffDays > 0;
+
+    // Month divider
+    const monthLabel = ev.date.toLocaleDateString('en-CA', { month:'long', year:'numeric' });
+    if (monthLabel !== lastMonth) {
+      html += `<div class="events-month">${monthLabel}</div>`;
+      lastMonth = monthLabel;
+    }
+
+    // Countdown text
+    let countdown, countdownCls = '';
+    if (isToday)       { countdown = 'Tonight!'; countdownCls = 'now'; }
+    else if (diffDays === 1) countdown = 'Tomorrow';
+    else if (diffDays <= 7)  countdown = `${diffDays} days`;
+    else                     countdown = `${diffDays}d`;
+
+    // Badge
+    let badge = '';
+    if (isToday)      badge = '<span class="event-badge badge-tonight">Tonight</span>';
+    else if (isSoon)  badge = '<span class="event-badge badge-soon">This Week</span>';
+
+    const cardCls = isToday ? 'today' : isSoon ? 'soon' : '';
+    const dateStr = ev.date.toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' });
+
+    html += `<div class="event-card ${cardCls}" data-key="${ev.key}" style="animation-delay:${delay}ms">
+      <div class="event-icon-wrap">${ev.icon}</div>
+      <div class="event-body">
+        <div class="event-title">${ev.title}</div>
+        <div class="event-desc">${ev.desc}</div>
+        <div class="event-meta">
+          <span class="event-date">${dateStr}</span>
+          ${badge}
+        </div>
+      </div>
+      <div class="event-countdown ${countdownCls}">${countdown}</div>
+    </div>`;
+    delay += 35;
+  }
+
+  body.innerHTML = html;
+}
+
+function loadEvents() {
+  if (_eventsLoaded) return;
+  _eventsLoaded = true;
+  try {
+    _allEvents = computeSkyEvents();
+    renderEventsList();
+    // Request location to enrich with visibility info
+    getLocation(
+      () => enrichEventsWithVisibility(),
+      ()  => showEventsLocationNote()
+    );
+  } catch(e) {
+    document.getElementById('eventsBody').innerHTML =
+      '<p class="no-targets">Could not compute events. Please try again.</p>';
+  }
+}
+
+// ── Event visibility enrichment ───────────────────────────────────────────────
+
+function showEventsLocationNote() {
+  const note = document.getElementById('eventsLocationNote');
+  if (note) note.style.display = 'block';
+}
+
+// Returns { cls, text } visibility info for a given event
+function getEventVisibility(ev) {
+  if (OBS_LAT === null || OBS_LON === null) return null;
+
+  const date     = ev.date;
+  const observer = new Astronomy.Observer(OBS_LAT, OBS_LON, 0);
+
+  try {
+    // ── Planet events (opposition, elongation, conjunction) ──────
+    if (ev.type === 'planet') {
+      // Extract planet name(s) from the event
+      const planetNames = Object.keys(PLANET_ICONS).filter(p => ev.title.includes(p));
+      if (planetNames.length === 0) return null;
+
+      // For conjunctions check both planets; for others just the first
+      const results = planetNames.map(pname => {
+        try {
+          const body = Astronomy.Body[pname];
+          // Get altitude at transit (best-case altitude)
+          const transit = Astronomy.SearchHourAngle(body, observer, 0, date, +1);
+          if (!transit) return null;
+          const eq  = Astronomy.Equator(body, transit.time.date, observer, true, true);
+          const hor = Astronomy.Horizon(transit.time.date, observer, eq.ra, eq.dec, 'normal');
+          const alt = hor.altitude;
+
+          // Is transit during night hours? (check sun altitude at that time)
+          const sunEq  = Astronomy.Equator(Astronomy.Body.Sun, transit.time.date, observer, true, true);
+          const sunHor = Astronomy.Horizon(transit.time.date, observer, sunEq.ra, sunEq.dec, 'normal');
+          const sunAlt = sunHor.altitude;
+          const atNight = sunAlt < -6; // at least civil twilight
+
+          if (alt < 0)   return { cls:'poor', text: `${pname} below horizon at transit` };
+          if (!atNight)  return { cls:'warn', text: `${pname} transits in daytime (${Math.round(alt)}° alt)` };
+          if (alt >= 30) return { cls:'good', text: `${pname} well placed — ${Math.round(alt)}° at transit` };
+          if (alt >= 15) return { cls:'warn', text: `${pname} low but visible — ${Math.round(alt)}° at transit` };
+          return               { cls:'poor', text: `${pname} very low — ${Math.round(alt)}° at transit` };
+        } catch(e) { return null; }
+      }).filter(Boolean);
+
+      if (results.length === 0) return null;
+      // For conjunctions return the worse of the two
+      if (results.length > 1) {
+        const order = ['poor','warn','good'];
+        results.sort((a,b) => order.indexOf(a.cls) - order.indexOf(b.cls));
+        // Combine both planet results into one message
+        return { cls: results[0].cls, text: results.map(r => r.text).join(' · ') };
+      }
+      return results[0];
+    }
+
+    // ── Meteor showers ───────────────────────────────────────────
+    if (ev.type === 'meteor') {
+      // Check moon illumination that night
+      const moonIllum = Astronomy.Illumination(Astronomy.Body.Moon, date);
+      const moonPct   = Math.round((1 + Math.cos(moonIllum.phase_angle * Math.PI / 180)) / 2 * 100);
+
+      // Check darkness window
+      const { noTrueDark } = getNightWindow(date);
+
+      if (noTrueDark)        return { cls:'poor', text: 'No astronomical darkness at your latitude this night' };
+      if (moonPct > 80)      return { cls:'poor', text: `Near Full Moon (${moonPct}% illuminated) — rates will be severely reduced` };
+      if (moonPct > 50)      return { cls:'warn', text: `Gibbous Moon (${moonPct}% illuminated) — some interference expected` };
+      if (moonPct > 25)      return { cls:'warn', text: `Quarter Moon (${moonPct}% illuminated) — moderate interference` };
+      return                        { cls:'good', text: `Dark skies — Moon only ${moonPct}% illuminated` };
+    }
+
+    // ── Lunar phase events ───────────────────────────────────────
+    if (ev.type === 'lunar') {
+      const moonRise = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, +1, date, 1)?.date;
+      const moonSet  = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, -1, date, 1)?.date;
+      const { nightStart, nightEnd } = getNightWindow(date);
+
+      // quarter=0 New Moon — no moon, just comment on dark sky
+      if (ev.title === 'New Moon') {
+        return { cls:'good', text: 'No moon — darkest skies of the cycle, ideal for deep sky' };
+      }
+      // Full Moon — always visible but washes out faint objects
+      if (ev.title === 'Full Moon') {
+        if (moonRise && moonSet) {
+          const riseStr = moonRise.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
+          const setStr  = moonSet.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
+          return { cls:'info', text: `Rises ${riseStr}, sets ${setStr} — bright all night, challenging for lunar detail` };
+        }
+        return { cls:'info', text: 'Visible all night — excellent for lunar observation' };
+      }
+      // First/Third Quarter
+      if (moonRise) {
+        const riseStr = moonRise.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});
+        const setStr  = moonSet ? moonSet.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false}) : '—';
+        return { cls:'good', text: `Rises ${riseStr} · sets ${setStr} — terminator well placed for lunar observing` };
+      }
+      return { cls:'info', text: 'Lunar phase event — check local moonrise time' };
+    }
+
+    // ── Solar events (solstice/equinox) ──────────────────────────
+    if (ev.type === 'solar') {
+      // Just note night length
+      const { nightStart, nightEnd, noTrueDark } = getNightWindow(date);
+      if (noTrueDark) return { cls:'warn', text: 'No astronomical darkness — midnight sun or near' };
+      const nightHrs = Math.round((nightEnd - nightStart) / 3600000 * 10) / 10;
+      if (ev.title.includes('Winter')) return { cls:'good', text: `Longest night of the year — ${nightHrs}h of darkness` };
+      if (ev.title.includes('Summer')) return { cls:'warn', text: `Shortest night of the year — only ${nightHrs}h of darkness` };
+      return { cls:'info', text: `${nightHrs}h of astronomical darkness tonight` };
+    }
+
+  } catch(e) {}
+  return null;
+}
+
+function enrichEventsWithVisibility() {
+  // Update each event card in-place by injecting visibility HTML
+  const cards = document.querySelectorAll('.event-card[data-key]');
+  cards.forEach(card => {
+    const key = card.getAttribute('data-key');
+    const ev  = _allEvents.find(e => e.key === key);
+    if (!ev) return;
+    const vis = getEventVisibility(ev);
+    if (!vis) return;
+    const descEl = card.querySelector('.event-desc');
+    if (!descEl) return;
+    // Remove any existing visibility line
+    const existing = card.querySelector('.event-visibility');
+    if (existing) existing.remove();
+    const visEl = document.createElement('div');
+    visEl.className = 'event-visibility';
+    visEl.innerHTML = `<span class="vis-dot ${vis.cls}"></span><span class="vis-text ${vis.cls}">${vis.text}</span>`;
+    descEl.after(visEl);
+  });
+  // Hide location note if shown
+  const note = document.getElementById('eventsLocationNote');
+  if (note) note.style.display = 'none';
+}
+
 // ── Tab switching ─────────────────────────────────────────────────────────────
 let planetsLoaded = false;
 
@@ -1461,6 +2007,11 @@ function switchTab(name) {
       () => renderPlanets(),
       ()  => renderPlanets()
     );
+  }
+
+  // Load events tab
+  if (name === 'events') {
+    loadEvents();
   }
 
   // Redraw canvas if switching back to planets
