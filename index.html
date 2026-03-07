@@ -1527,23 +1527,31 @@ function drawAltitudeGraph(datasets, STEPS) {
   ctx.textAlign = 'right';
   ctx.fillText('0°', PAD_L - 4, yOf(0) + 3);
 
-  // X axis hour labels — every 1 hour across 18:00–06:00
+  // X axis hour labels — adapt label interval to available width
+  // 13 labels (18:00–06:00) collapse on ~360 px screens; use pixel gap to decide.
   const H_START = 18, H_END = 30;
+  const altMinLabelGap = 36; // px minimum between label centres
+  const altHourPx = gW / (H_END - H_START); // px per hour
+  const altLabelEvery = Math.max(1, Math.ceil(altMinLabelGap / altHourPx));
+
   ctx.font = '9px sans-serif';
   ctx.textAlign = 'center';
   for (let hNorm = H_START; hNorm <= H_END; hNorm++) {
     const x = PAD_L + ((hNorm - H_START) / (H_END - H_START)) * gW;
     if (x < PAD_L + 4 || x > PAD_L + gW - 4) continue;
     const h = hNorm >= 24 ? hNorm - 24 : hNorm;
-    const label = String(h).padStart(2,'0') + ':00';
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.fillText(label, x, H - PAD_B + 14);
+    // Always draw subtle gridline
     ctx.strokeStyle = 'rgba(255,255,255,0.08)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, PAD_T);
     ctx.lineTo(x, PAD_T + gH);
     ctx.stroke();
+    // Only label at the computed interval
+    if ((hNorm - H_START) % altLabelEvery !== 0) continue;
+    const label = String(h).padStart(2,'0') + ':00';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(label, x, H - PAD_B + 14);
   }
 
   // Draw each planet curve
@@ -1591,39 +1599,6 @@ function drawAltitudeGraph(datasets, STEPS) {
     }
   }
 
-
-  // ── Cloud cover overlay (from forecast data if available) ────────────────
-  const cloudHrs = window._cloudNightHours;
-  if (cloudHrs && cloudHrs.length >= 2) {
-    const mn3 = new Date(); mn3.setHours(0,0,0,0);
-    const nowH3 = new Date().getHours();
-    const baseDay3 = (nowH3 < 6) ? new Date(mn3.getTime() - 86400000) : new Date(mn3);
-    const winStart3 = new Date(baseDay3.getTime() + 18 * 3600000);
-    const winDur3 = 12 * 3600000;
-    function cloudX(t) { return PAD_L + ((t - winStart3) / winDur3) * gW; }
-    // Filled columns proportional to TCDC
-    for (let i = 0; i < cloudHrs.length - 1; i++) {
-      const h0 = cloudHrs[i], h1 = cloudHrs[i+1];
-      const tcdc = h0.tcdc ?? 0;
-      const x0 = cloudX(h0.time), x1 = cloudX(h1.time);
-      if (x1 < PAD_L || x0 > PAD_L + gW) continue;
-      ctx.fillStyle = `rgba(160,180,220,${((tcdc/100)*0.38).toFixed(3)})`;
-      ctx.fillRect(Math.max(x0,PAD_L), PAD_T, Math.min(x1,PAD_L+gW)-Math.max(x0,PAD_L), gH);
-    }
-    // Dashed line in top 22% of chart
-    ctx.save();
-    ctx.beginPath(); ctx.strokeStyle='rgba(140,170,230,0.75)'; ctx.lineWidth=1.5;
-    ctx.setLineDash([3,2]); ctx.lineJoin='round';
-    function cloudLineY(v) { return PAD_T + (1 - v/100) * gH * 0.22; }
-    let firstCl = true;
-    for (const h of cloudHrs) {
-      const cx = cloudX(h.time);
-      if (cx < PAD_L || cx > PAD_L+gW) continue;
-      const cy = cloudLineY(h.tcdc ?? 0);
-      if (firstCl) { ctx.moveTo(cx, cy); firstCl = false; } else ctx.lineTo(cx, cy);
-    }
-    ctx.stroke(); ctx.restore();
-  }
 
   // Dawn / dusk twilight lines
   const { nightStart, nightEnd } = getNightWindow(today());
@@ -2311,9 +2286,16 @@ function drawTempDewChart(canvasId, hours48) {
     ctx.fillRect(x0, PAD_T, x1-x0, gH);
   }
 
-  // X-axis time labels — every 6 hours
+  // X-axis time labels — adaptive interval based on available width
+  // 48-hr chart at 6-hr intervals = ~8 labels. On very narrow screens even that crowds.
+  // Compute how many px a 6-hr gap occupies and double the interval if too tight.
+  const sixHourPx = (6 / 48) * gW;
+  const tmpMinLabelGap = 40; // px minimum between centres
+  // Choose the smallest interval (in hours) that still gives >= minLabelGap px
+  let tmpLabelInterval = 6;
+  if (sixHourPx < tmpMinLabelGap) tmpLabelInterval = 12;
+
   ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='9px sans-serif'; ctx.textAlign='center';
-  // Gridline every data point, labels every 6 hours + date at midnight
   for (const h of hours48) {
     const x = xT(h.time);
     if (x < PAD_L+4 || x > PAD_L+gW-4) continue;
@@ -2321,10 +2303,14 @@ function drawTempDewChart(canvasId, hours48) {
     // Subtle gridline every hour
     ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(x,PAD_T); ctx.lineTo(x,PAD_T+gH); ctx.stroke();
-    // Label at midnight (show date) and every 6 hours
-    if (hr !== 0 && hr % 6 !== 0) continue;
+    // Label at midnight (show date) and every tmpLabelInterval hours
+    if (hr !== 0 && hr % tmpLabelInterval !== 0) continue;
+    // On mobile, shorten date label to just the day (e.g. "Mar 8" -> "8")
     const label = hr === 0
-      ? new Date(h.localDate + 'T12:00').toLocaleDateString('en-CA',{month:'short',day:'numeric'})
+      ? new Date(h.localDate + 'T12:00').toLocaleDateString('en-CA',
+          W < 400
+            ? {month:'short', day:'numeric'}
+            : {month:'short', day:'numeric'})
       : String(hr).padStart(2,'0') + ':00';
     ctx.fillStyle = hr === 0 ? 'rgba(201,168,76,0.8)' : 'rgba(255,255,255,0.4)';
     ctx.fillText(label, x, H-PAD_B+12);
@@ -2409,17 +2395,26 @@ function drawCloudChart(canvasId, nightHrs) {
     ctx.textAlign='right'; ctx.fillText(pct+'%', PAD_L-4, yV(pct)+3);
   }
 
-  // Gridlines every data point, labels every even hour only
+  // Gridlines every data point, labels thinned out on narrow screens
+  // On mobile (~360px wide), 13 hourly labels (18–06) overlap badly.
+  // Use a minimum pixel gap between labels to decide the label interval.
+  const minLabelGap = 36; // px — minimum space between label centres
+  const approxHourPx = gW / (nightHrs.length > 1 ? nightHrs.length - 1 : 1);
+  const labelEvery = Math.max(1, Math.ceil(minLabelGap / approxHourPx));
+
   ctx.font='9px sans-serif'; ctx.textAlign='center';
   for (const h of nightHrs) {
     const x = xT(h.time);
     if (x < PAD_L + 4 || x > PAD_L + gW - 4) continue;
     const hr = h.localHour;
+    // Subtle gridline for every data point
+    ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,PAD_T); ctx.lineTo(x,PAD_T+gH); ctx.stroke();
+    // Only label at the computed interval
+    if (hr % labelEvery !== 0) continue;
     const label = String(hr).padStart(2,'0') + ':00';
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.fillText(label, x, H-PAD_B+12);
-    ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(x,PAD_T); ctx.lineTo(x,PAD_T+gH); ctx.stroke();
   }
 
   // Filled area
