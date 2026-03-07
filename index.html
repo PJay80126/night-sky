@@ -381,6 +381,68 @@
     .card, .section-body { padding:18px; }
     .section-header { padding-left:18px; padding-right:18px; }
   }
+
+  /* ── Forecast Tab ─────────────────────────────────────────────────────── */
+  .fc-loading { display:flex; align-items:center; gap:14px; padding:40px 20px;
+    color:var(--text-dim); font-style:italic; justify-content:center; }
+  .fc-spinner { width:22px; height:22px; border:2px solid rgba(201,168,76,0.2);
+    border-top-color:var(--gold); border-radius:50%; animation:spin 0.8s linear infinite; flex-shrink:0; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .fc-error { background:rgba(180,60,60,0.1); border:1px solid rgba(180,60,60,0.3);
+    border-radius:12px; padding:20px; color:#c97c7c; line-height:1.6; margin-bottom:16px; }
+  .fc-outlook-card { background:var(--surface); border:1px solid rgba(201,168,76,0.15);
+    border-radius:14px; overflow:hidden; margin-bottom:14px; }
+  .fc-outlook-row { display:flex; align-items:flex-start; gap:16px; padding:18px 20px 14px; }
+  .fc-outlook-icon { font-size:2.8rem; line-height:1; flex-shrink:0;
+    filter:drop-shadow(0 0 12px rgba(201,168,76,0.4)); }
+  .fc-outlook-text { flex:1; }
+  .fc-outlook-label { font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.15em;
+    color:var(--text-dim); text-transform:uppercase; margin-bottom:4px; }
+  .fc-outlook-value { font-family:'Cinzel',serif; font-size:1.1rem; color:var(--gold-light);
+    letter-spacing:0.05em; margin-bottom:4px; }
+  .fc-outlook-value.clear { color:#4cef9a; }
+  .fc-outlook-value.mostly-clear { color:#a0e080; }
+  .fc-outlook-value.partly { color:var(--gold-light); }
+  .fc-outlook-value.cloudy { color:#c97c7c; }
+  .fc-outlook-sub { font-size:0.8rem; color:var(--text-dim); font-style:italic; line-height:1.4; }
+  .fc-stats-grid { display:grid; grid-template-columns:repeat(4,1fr);
+    border-top:1px solid rgba(201,168,76,0.1); }
+  .fc-stat-box { padding:12px 14px; border-right:1px solid rgba(201,168,76,0.08); }
+  .fc-stat-box:last-child { border-right:none; }
+  .fc-stat-label { font-size:0.65rem; font-family:'Cinzel',serif; letter-spacing:0.1em;
+    color:var(--text-dim); text-transform:uppercase; margin-bottom:4px; }
+  .fc-stat-value { font-size:1rem; color:var(--gold-light); font-family:'Cinzel',serif; }
+  .fc-stat-sub { font-size:0.65rem; color:var(--text-dim); margin-top:2px; font-style:italic; }
+  @media(max-width:480px){
+    .fc-stats-grid { grid-template-columns:repeat(2,1fr); }
+    .fc-stat-box:nth-child(2) { border-right:none; }
+    .fc-stat-box:nth-child(3),.fc-stat-box:nth-child(4) { border-top:1px solid rgba(201,168,76,0.08); }
+  }
+  .fc-chart-card { background:var(--surface); border:1px solid rgba(201,168,76,0.15);
+    border-radius:14px; overflow:hidden; margin-bottom:14px; }
+  .fc-chart-header { background:var(--surface2); padding:14px 20px;
+    border-bottom:1px solid rgba(201,168,76,0.12);
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .fc-chart-header h3 { font-family:'Cinzel',serif; font-size:0.8rem; letter-spacing:0.1em;
+    color:var(--gold-light); text-transform:uppercase; margin:0; }
+  .fc-chart-body { padding:16px 20px; }
+  .fc-canvas-wrap { position:relative; }
+  .fc-canvas { width:100%; border-radius:8px; display:block; }
+  .fc-layers-card { background:var(--surface); border:1px solid rgba(201,168,76,0.15);
+    border-radius:14px; overflow:hidden; margin-bottom:14px; padding:18px 20px; }
+  .fc-cond-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px; }
+  .fc-cond-box { background:rgba(255,255,255,0.03); border:1px solid rgba(201,168,76,0.1);
+    border-radius:10px; padding:12px 10px; text-align:center; }
+  .fc-cond-icon { font-size:1.4rem; margin-bottom:6px; }
+  .fc-cond-label { font-size:0.65rem; font-family:'Cinzel',serif; letter-spacing:0.08em;
+    color:var(--text-dim); text-transform:uppercase; margin-bottom:6px; }
+  .fc-cond-value { font-size:0.75rem; color:var(--text-dim); font-style:italic;
+    margin-bottom:6px; line-height:1.3; }
+  .fc-cond-rating { font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.08em;
+    padding:2px 8px; border-radius:4px; display:inline-block; text-transform:uppercase; }
+  .fc-cond-rating.good { background:rgba(76,175,122,0.15); color:#4caf7a; border:1px solid rgba(76,175,122,0.3); }
+  .fc-cond-rating.warn { background:rgba(201,168,76,0.15); color:var(--gold); border:1px solid rgba(201,168,76,0.3); }
+  .fc-cond-rating.poor { background:rgba(180,60,60,0.15); color:#c97c7c; border:1px solid rgba(180,60,60,0.3); }
 </style>
 </head>
 <body>
@@ -400,6 +462,10 @@
     <button class="tab-btn" id="tab-events" onclick="switchTab('events')">
       <span class="tab-icon">✨</span>
       <span class="tab-label">Events</span>
+    </button>
+    <button class="tab-btn" id="tab-forecast" onclick="switchTab('forecast')">
+      <span class="tab-icon">🌤</span>
+      <span class="tab-label">Forecast</span>
     </button>
   </div>
 
@@ -537,6 +603,18 @@
   </div>
 
 
+
+  <!-- Forecast tab -->
+  <div class="tab-panel" id="panel-forecast">
+    <div class="moon-header" style="margin-bottom:20px">
+      <div style="font-size:3rem;line-height:1;filter:drop-shadow(0 0 16px rgba(201,168,76,0.4))">🌤</div>
+      <h1 style="margin-top:14px">Weather Forecast</h1>
+      <p class="subtitle">Open-Meteo · Tonight's Observing Conditions</p>
+    </div>
+    <div id="fcContent">
+      <div class="fc-loading"><div class="fc-spinner"></div>Loading forecast…</div>
+    </div>
+  </div>
   <div class="footer">Based on the RASC Explore the Moon observing program · Images © Robert Reeves</div>
 </div>
 
@@ -1358,13 +1436,16 @@ function renderPlanets() {
         <span style="color:${p.color}">${p.icon}</span>
         <span>${p.name}</span>
       </div>`
-    ).join('');
+    ).join('') + `<div class="legend-item" id="cloudLegendItem" style="display:${window._cloudNightHours ? 'flex' : 'none'}">
+      <div class="legend-dot" style="border-top:2px dashed rgba(140,170,230,0.8);background:transparent;height:0"></div>
+      <span style="color:rgba(160,185,235,0.9)">☁</span><span>Cloud cover</span>
+    </div>`;
 
     graphHTML = `
       <div class="altitude-graph-wrap">
         <div class="altitude-graph-title">Altitude above Horizon &mdash; 18:00 to 06:00</div>
         <div class="altitude-graph-container">
-          <canvas id="altCanvas" class="altitude-canvas" height="200"></canvas>
+          <canvas id="altCanvas" class="altitude-canvas"></canvas>
         </div>
         <div class="altitude-legend">${legendItems}</div>
       </div>`;
@@ -1387,9 +1468,10 @@ function drawAltitudeGraph(datasets, STEPS) {
   if (!canvas) return;
   const dpr    = window.devicePixelRatio || 1;
   const W      = canvas.offsetWidth;
-  const H      = 200;
+  const H      = Math.round(W * 0.42); // ~42% aspect ratio, scales with zoom
   canvas.width  = W * dpr;
   canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
@@ -1507,6 +1589,40 @@ function drawAltitudeGraph(datasets, STEPS) {
       ctx.fillStyle = planet.color;
       ctx.fillText(planet.icon, xOf(peakIdx), yOf(maxAlt)-5);
     }
+  }
+
+
+  // ── Cloud cover overlay (from forecast data if available) ────────────────
+  const cloudHrs = window._cloudNightHours;
+  if (cloudHrs && cloudHrs.length >= 2) {
+    const mn3 = new Date(); mn3.setHours(0,0,0,0);
+    const nowH3 = new Date().getHours();
+    const baseDay3 = (nowH3 < 6) ? new Date(mn3.getTime() - 86400000) : new Date(mn3);
+    const winStart3 = new Date(baseDay3.getTime() + 18 * 3600000);
+    const winDur3 = 12 * 3600000;
+    function cloudX(t) { return PAD_L + ((t - winStart3) / winDur3) * gW; }
+    // Filled columns proportional to TCDC
+    for (let i = 0; i < cloudHrs.length - 1; i++) {
+      const h0 = cloudHrs[i], h1 = cloudHrs[i+1];
+      const tcdc = h0.tcdc ?? 0;
+      const x0 = cloudX(h0.time), x1 = cloudX(h1.time);
+      if (x1 < PAD_L || x0 > PAD_L + gW) continue;
+      ctx.fillStyle = `rgba(160,180,220,${((tcdc/100)*0.38).toFixed(3)})`;
+      ctx.fillRect(Math.max(x0,PAD_L), PAD_T, Math.min(x1,PAD_L+gW)-Math.max(x0,PAD_L), gH);
+    }
+    // Dashed line in top 22% of chart
+    ctx.save();
+    ctx.beginPath(); ctx.strokeStyle='rgba(140,170,230,0.75)'; ctx.lineWidth=1.5;
+    ctx.setLineDash([3,2]); ctx.lineJoin='round';
+    function cloudLineY(v) { return PAD_T + (1 - v/100) * gH * 0.22; }
+    let firstCl = true;
+    for (const h of cloudHrs) {
+      const cx = cloudX(h.time);
+      if (cx < PAD_L || cx > PAD_L+gW) continue;
+      const cy = cloudLineY(h.tcdc ?? 0);
+      if (firstCl) { ctx.moveTo(cx, cy); firstCl = false; } else ctx.lineTo(cx, cy);
+    }
+    ctx.stroke(); ctx.restore();
   }
 
   // Dawn / dusk twilight lines
@@ -1996,6 +2112,502 @@ function enrichEventsWithVisibility() {
   if (note) note.style.display = 'none';
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── FORECAST TAB — Open-Meteo API ────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let forecastLoaded = false;
+
+// Fetch hourly forecast from Open-Meteo (free, no key, CORS-ok, uses HRDPS for Canada)
+async function fetchForecast(lat, lon) {
+  const vars = [
+    'cloud_cover',
+    'cloud_cover_low',
+    'cloud_cover_mid',
+    'cloud_cover_high',
+    'temperature_2m',
+    'relative_humidity_2m',
+    'wind_speed_10m',
+    'dew_point_2m',
+    'precipitation_probability'
+  ].join(',');
+
+  const url = `https://api.open-meteo.com/v1/forecast`
+    + `?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}`
+    + `&hourly=${vars}`
+    + `&models=gem_seamless`
+    + `&forecast_days=3`
+    + `&timezone=auto`;
+
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Open-Meteo returned HTTP ${resp.status}`);
+  const data = await resp.json();
+  if (!data.hourly || !data.hourly.time) throw new Error('Unexpected response from Open-Meteo.');
+  return data;
+}
+
+function parseForecast(data) {
+  const h = data.hourly;
+  return h.time.map((t, i) => ({
+    time:  new Date(t),
+    tcdc:  h.cloud_cover[i],
+    lcdc:  h.cloud_cover_low[i],
+    mcdc:  h.cloud_cover_mid[i],
+    hcdc:  h.cloud_cover_high[i],
+    tmp:   h.temperature_2m[i],
+    dewp:  h.dew_point_2m ? h.dew_point_2m[i] : null,
+    rh:    h.relative_humidity_2m[i],
+    wspd:  h.wind_speed_10m[i],   // km/h from Open-Meteo
+    precip_prob: h.precipitation_probability[i],
+  }));
+}
+
+// Filter parsed hours to tonight's 18:00–06:00 window
+// NOTE: renamed to avoid clash with existing getNightWindow(date) in Events tab
+function getForecastNightHours(hours) {
+  const mn = new Date(); mn.setHours(0,0,0,0);
+  const nowH = new Date().getHours();
+  const baseDay = (nowH < 6) ? new Date(mn.getTime() - 86400000) : new Date(mn);
+  const s = new Date(baseDay.getTime() + 18 * 3600000);
+  const e = new Date(baseDay.getTime() + 30 * 3600000);
+  return hours.filter(h => h.time >= s && h.time <= e);
+}
+
+function getTomorrowNightHours(hours) {
+  const mn = new Date(); mn.setHours(0,0,0,0);
+  const tmrw = new Date(mn.getTime() + 86400000);
+  const s = new Date(tmrw.getTime() + 18 * 3600000);
+  const e = new Date(tmrw.getTime() + 30 * 3600000);
+  return hours.filter(h => h.time >= s && h.time <= e);
+}
+
+function getOutlook(nightHours) {
+  if (!nightHours.length) return { icon:'❓', label:'No Data', sub:'Forecast unavailable', cls:'partly' };
+  const vals = nightHours.map(h => h.tcdc ?? 0);
+  const sorted = [...vals].sort((a,b)=>a-b);
+  const median = sorted[Math.floor(sorted.length/2)];
+  if (median <= 10) return { icon:'⭐', label:'Clear',        sub:'Excellent — minimal cloud cover expected',    cls:'clear' };
+  if (median <= 30) return { icon:'🌙', label:'Mostly Clear', sub:'Good — occasional cloud possible',           cls:'mostly-clear' };
+  if (median <= 55) return { icon:'⛅', label:'Partly Cloudy',sub:'Mixed — intermittent cloud cover',           cls:'partly' };
+  if (median <= 80) return { icon:'🌥', label:'Mostly Cloudy',sub:'Poor — cloud will interrupt viewing',        cls:'cloudy' };
+  return               { icon:'☁️', label:'Overcast',      sub:'Cloud cover will prevent observing tonight', cls:'cloudy' };
+}
+
+// Open-Meteo returns wind in km/h — convert to m/s for display
+function getSeeingRating(wspd_kmh) {
+  if (wspd_kmh === null || wspd_kmh === undefined) return { label:'Unknown', cls:'warn', text:'No wind data' };
+  const w = parseFloat(wspd_kmh) / 3.6; // km/h → m/s
+  if (w < 2)  return { label:'Excellent', cls:'good', text:`${w.toFixed(1)} m/s — very steady air` };
+  if (w < 5)  return { label:'Good',      cls:'good', text:`${w.toFixed(1)} m/s — calm conditions` };
+  if (w < 9)  return { label:'Fair',      cls:'warn', text:`${w.toFixed(1)} m/s — some turbulence` };
+  return             { label:'Poor',      cls:'poor', text:`${w.toFixed(1)} m/s — turbulent air` };
+}
+
+function getDewRisk(rh) {
+  if (rh === null || rh === undefined) return { label:'Unknown', cls:'warn', text:'No humidity data' };
+  const r = parseFloat(rh);
+  if (r < 50) return { label:'Low',       cls:'good', text:`${Math.round(r)}% RH` };
+  if (r < 70) return { label:'Moderate',  cls:'warn', text:`${Math.round(r)}% RH` };
+  if (r < 85) return { label:'High',      cls:'warn', text:`${Math.round(r)}% RH — monitor optics` };
+  return             { label:'Very High', cls:'poor', text:`${Math.round(r)}% RH — dew likely` };
+}
+
+
+function drawTempDewChart(canvasId, hours48) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || hours48.length < 2) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.offsetWidth;
+  const H   = Math.round(W * 0.38); // ~38% aspect ratio, scales with zoom
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const PAD_L=42, PAD_R=12, PAD_T=16, PAD_B=32;
+  const gW = W - PAD_L - PAD_R, gH = H - PAD_T - PAD_B;
+
+  ctx.fillStyle = '#0d1220'; ctx.fillRect(0,0,W,H);
+  const bg = ctx.createLinearGradient(PAD_L, PAD_T, PAD_L, PAD_T+gH);
+  bg.addColorStop(0,'rgba(40,50,80,0.35)'); bg.addColorStop(1,'rgba(10,15,30,0.15)');
+  ctx.fillStyle=bg; ctx.beginPath(); ctx.roundRect(PAD_L,PAD_T,gW,gH,6); ctx.fill();
+
+  const temps = hours48.map(h => h.tmp).filter(v => v !== null && v !== undefined);
+  const dews  = hours48.map(h => h.dewp).filter(v => v !== null && v !== undefined);
+  const allVals = [...temps, ...dews];
+  if (!allVals.length) return;
+
+  const minV = Math.floor(Math.min(...allVals) / 5) * 5 - 2;
+  const maxV = Math.ceil(Math.max(...allVals) / 5) * 5 + 2;
+  const range = maxV - minV || 1;
+
+  const tStart = hours48[0].time, tEnd = hours48[hours48.length-1].time;
+  const tRange = (tEnd - tStart) || 1;
+  function xT(t) { return PAD_L + ((t - tStart) / tRange) * gW; }
+  function yV(v) { return PAD_T + gH - ((v - minV) / range) * gH; }
+
+  // Temp gridlines — every 5°C
+  const step = range <= 20 ? 2 : range <= 40 ? 5 : 10;
+  for (let v = Math.ceil(minV/step)*step; v <= maxV; v += step) {
+    ctx.strokeStyle = v === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = v === 0 ? 1 : 0.5; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(PAD_L, yV(v)); ctx.lineTo(PAD_L+gW, yV(v)); ctx.stroke();
+    ctx.fillStyle = v === 0 ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.25)';
+    ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(v+'°', PAD_L-4, yV(v)+3);
+  }
+
+  // Shade the spread between temp and dew point (smaller spread = dew risk)
+  const hasDew = hours48.some(h => h.dewp !== null && h.dewp !== undefined);
+  if (hasDew) {
+    ctx.beginPath();
+    for (let i = 0; i < hours48.length; i++) {
+      const h = hours48[i];
+      if (h.tmp === null || h.dewp === null) continue;
+      const x = xT(h.time);
+      if (i === 0) ctx.moveTo(x, yV(h.tmp)); else ctx.lineTo(x, yV(h.tmp));
+    }
+    for (let i = hours48.length-1; i >= 0; i--) {
+      const h = hours48[i];
+      if (h.tmp === null || h.dewp === null) continue;
+      ctx.lineTo(xT(h.time), yV(h.dewp));
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(160,180,220,0.15)';
+    ctx.fill();
+  }
+
+  // Day/night shading — shade nighttime bands (18:00–06:00)
+  const mn = new Date(tStart); mn.setHours(0,0,0,0);
+  for (let d = 0; d <= 3; d++) {
+    const nightS = new Date(mn.getTime() + (d * 86400000) + 18 * 3600000);
+    const nightE = new Date(mn.getTime() + (d * 86400000) + 30 * 3600000);
+    if (nightE < tStart || nightS > tEnd) continue;
+    const x0 = xT(Math.max(nightS, tStart));
+    const x1 = xT(Math.min(nightE, tEnd));
+    ctx.fillStyle = 'rgba(0,0,40,0.18)';
+    ctx.fillRect(x0, PAD_T, x1-x0, gH);
+  }
+
+  // X-axis time labels — every 6 hours
+  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='9px sans-serif'; ctx.textAlign='center';
+  const sixHours = 6 * 3600000;
+  const firstTick = new Date(Math.ceil(tStart.getTime() / sixHours) * sixHours);
+  for (let t = firstTick; t <= tEnd; t = new Date(t.getTime() + sixHours)) {
+    const x = xT(t);
+    if (x < PAD_L+8 || x > PAD_L+gW-8) continue;
+    const h = t.getHours();
+    const label = h === 0
+      ? t.toLocaleDateString('en-CA',{month:'short',day:'numeric'})
+      : h + ':00';
+    ctx.fillStyle = h === 0 ? 'rgba(201,168,76,0.7)' : 'rgba(255,255,255,0.35)';
+    ctx.fillText(label, x, H-PAD_B+12);
+    ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,PAD_T); ctx.lineTo(x,PAD_T+gH); ctx.stroke();
+  }
+
+  // Temperature line
+  ctx.beginPath(); ctx.strokeStyle='rgba(224,128,96,0.95)'; ctx.lineWidth=2;
+  ctx.lineJoin='round'; ctx.setLineDash([]);
+  let first=true;
+  for (const h of hours48) {
+    if (h.tmp===null||h.tmp===undefined) { first=true; continue; }
+    const x=xT(h.time), y=yV(h.tmp);
+    if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  // Dew point line (dashed)
+  if (hasDew) {
+    ctx.beginPath(); ctx.strokeStyle='rgba(96,176,216,0.85)'; ctx.lineWidth=1.5;
+    ctx.setLineDash([4,3]); ctx.lineJoin='round';
+    first=true;
+    for (const h of hours48) {
+      if (h.dewp===null||h.dewp===undefined){first=true;continue;}
+      const x=xT(h.time), y=yV(h.dewp);
+      if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // NOW line
+  const now3 = new Date();
+  if (now3 >= tStart && now3 <= tEnd) {
+    const x = xT(now3);
+    ctx.save(); ctx.shadowColor='rgba(255,255,255,0.5)'; ctx.shadowBlur=5;
+    ctx.strokeStyle='rgba(255,255,255,0.8)'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(x,PAD_T); ctx.lineTo(x,PAD_T+gH); ctx.stroke(); ctx.restore();
+    ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.font='bold 9px sans-serif';
+    ctx.textAlign=x>PAD_L+gW*0.85?'right':'center';
+    ctx.fillText('NOW', x, PAD_T-2);
+  }
+
+  ctx.strokeStyle='rgba(201,168,76,0.15)'; ctx.lineWidth=1; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.roundRect(PAD_L,PAD_T,gW,gH,6); ctx.stroke();
+}
+
+function drawCloudChart(canvasId, nightHrs) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || nightHrs.length < 2) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.offsetWidth;
+  const H   = Math.round(W * 0.32); // ~32% aspect ratio, scales with zoom
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const PAD_L=36, PAD_R=12, PAD_T=12, PAD_B=28;
+  const gW = W - PAD_L - PAD_R, gH = H - PAD_T - PAD_B;
+
+  ctx.fillStyle = '#0d1220'; ctx.fillRect(0,0,W,H);
+  const bg = ctx.createLinearGradient(PAD_L, PAD_T, PAD_L, PAD_T+gH);
+  bg.addColorStop(0,'rgba(40,60,120,0.35)'); bg.addColorStop(1,'rgba(10,15,30,0.15)');
+  ctx.fillStyle=bg; ctx.beginPath(); ctx.roundRect(PAD_L,PAD_T,gW,gH,6); ctx.fill();
+
+  const tStart = nightHrs[0].time, tEnd = nightHrs[nightHrs.length-1].time;
+  const tRange = (tEnd - tStart) || 1;
+  function xT(t) { return PAD_L + ((t - tStart) / tRange) * gW; }
+  function yV(v) { return PAD_T + gH - (v/100) * gH; }
+
+  // Grid lines
+  for (const pct of [25,50,75,100]) {
+    ctx.strokeStyle = pct===50 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)';
+    ctx.lineWidth=1; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(PAD_L,yV(pct)); ctx.lineTo(PAD_L+gW,yV(pct)); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.font='9px sans-serif';
+    ctx.textAlign='right'; ctx.fillText(pct+'%', PAD_L-4, yV(pct)+3);
+  }
+
+  // Hour labels
+  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='9px sans-serif'; ctx.textAlign='center';
+  const H_START=18, H_END=30;
+  for (const h of [18,20,22,0,2,4,6]) {
+    const hN = h < 18 ? h+24 : h;
+    const x = PAD_L + ((hN - H_START) / (H_END - H_START)) * gW;
+    ctx.fillText(h===0?'00:00':h+':00', x, H-PAD_B+12);
+    ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,PAD_T); ctx.lineTo(x,PAD_T+gH); ctx.stroke();
+  }
+
+  // Filled area
+  ctx.beginPath();
+  let first=true;
+  for (const h of nightHrs) {
+    const x=xT(h.time), y=yV(h.tcdc??0);
+    if (first) { ctx.moveTo(x,PAD_T+gH); ctx.lineTo(x,y); first=false; } else ctx.lineTo(x,y);
+  }
+  ctx.lineTo(xT(nightHrs[nightHrs.length-1].time), PAD_T+gH); ctx.closePath();
+  const grad=ctx.createLinearGradient(0,PAD_T,0,PAD_T+gH);
+  grad.addColorStop(0,'rgba(120,150,220,0.55)'); grad.addColorStop(1,'rgba(80,100,180,0.1)');
+  ctx.fillStyle=grad; ctx.fill();
+
+  // Line
+  ctx.beginPath(); ctx.strokeStyle='rgba(140,170,230,0.9)'; ctx.lineWidth=2;
+  ctx.lineJoin='round'; ctx.setLineDash([]);
+  first=true;
+  for (const h of nightHrs) {
+    const x=xT(h.time), y=yV(h.tcdc??0);
+    if (first) { ctx.moveTo(x,y); first=false; } else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  // NOW
+  const now2=new Date();
+  if (now2>=tStart && now2<=tEnd) {
+    const x=xT(now2);
+    ctx.save(); ctx.shadowColor='rgba(255,255,255,0.6)'; ctx.shadowBlur=6;
+    ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(x,PAD_T); ctx.lineTo(x,PAD_T+gH); ctx.stroke(); ctx.restore();
+    ctx.fillStyle='rgba(255,255,255,0.75)'; ctx.font='bold 9px sans-serif';
+    ctx.textAlign=x>PAD_L+gW*0.85?'right':'center';
+    ctx.fillText('NOW',x,PAD_T-2);
+  }
+
+  ctx.strokeStyle='rgba(201,168,76,0.15)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(PAD_L,PAD_T,gW,gH,6); ctx.stroke();
+}
+
+function renderForecast() {
+  const container = document.getElementById('fcContent');
+  if (OBS_LAT === null || OBS_LON === null) {
+    container.innerHTML = `<div class="fc-error">Location unavailable — enable location services and reload.</div>`;
+    return;
+  }
+  container.innerHTML = `<div class="fc-loading"><div class="fc-spinner"></div>Fetching forecast for your location…</div>`;
+
+  fetchForecast(OBS_LAT, OBS_LON)
+    .then(data => {
+      const allHours = parseForecast(data);
+      const modelName = data.model || 'gem_seamless';
+      const nightHrs = getForecastNightHours(allHours);
+      const tmrwHrs  = getTomorrowNightHours(allHours);
+
+      // Store globally for planet altitude chart overlay
+      window._cloudNightHours = nightHrs;
+      if (window._altDatasets) {
+        requestAnimationFrame(() => {
+          drawAltitudeGraph(window._altDatasets, window._altSteps);
+          const leg = document.getElementById('cloudLegendItem');
+          if (leg) leg.style.display = 'flex';
+        });
+      }
+
+      const outlook      = getOutlook(nightHrs);
+      const tmrwOutlook  = getOutlook(tmrwHrs);
+
+      function med(arr, key) {
+        const vals = arr.map(h => h[key]).filter(v => v !== null && v !== undefined);
+        if (!vals.length) return null;
+        const s = [...vals].sort((a,b)=>a-b);
+        return s[Math.floor(s.length/2)];
+      }
+      const medTcdc = med(nightHrs,'tcdc'), medLcdc = med(nightHrs,'lcdc');
+      const medMcdc = med(nightHrs,'mcdc'), medHcdc = med(nightHrs,'hcdc');
+      const medTmp  = med(nightHrs,'tmp'),  medRh   = med(nightHrs,'rh');
+      const medWspd = med(nightHrs,'wspd');
+
+      const seeing = getSeeingRating(medWspd);
+      const dew    = getDewRisk(medRh);
+
+      const fmt1 = v => v!==null ? Math.round(v)+'%' : '—';
+      const fmtT = v => v!==null ? Math.round(v)+'°C' : '—';
+      const fmtW = v => v!==null ? (parseFloat(v)/3.6).toFixed(1)+' m/s' : '—';
+
+      const tzLabel = new Date().toLocaleDateString('en-CA',{timeZoneName:'short'}).split(', ')[1]||'local';
+      const locStr  = `${Math.abs(OBS_LAT).toFixed(2)}°${OBS_LAT>=0?'N':'S'}, ${Math.abs(OBS_LON).toFixed(2)}°${OBS_LON>=0?'E':'W'}`;
+
+      const tmrwBadgeStyle = (tmrwOutlook.cls==='clear'||tmrwOutlook.cls==='mostly-clear')
+        ? 'background:rgba(76,175,122,0.15);color:#4caf7a;border:1px solid rgba(76,175,122,0.3)'
+        : tmrwOutlook.cls==='cloudy'
+        ? 'background:rgba(180,60,60,0.15);color:#c97c7c;border:1px solid rgba(180,60,60,0.3)'
+        : 'background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.3)';
+
+      container.innerHTML = `
+        <div class="fc-outlook-card">
+          <div class="fc-outlook-row">
+            <div class="fc-outlook-icon">${outlook.icon}</div>
+            <div class="fc-outlook-text">
+              <div class="fc-outlook-label">Tonight's Outlook · 18:00–06:00 ${tzLabel}</div>
+              <div class="fc-outlook-value ${outlook.cls}">${outlook.label}</div>
+              <div class="fc-outlook-sub">${outlook.sub}</div>
+            </div>
+          </div>
+          <div class="fc-stats-grid">
+            <div class="fc-stat-box"><div class="fc-stat-label">Cloud</div>
+              <div class="fc-stat-value">${fmt1(medTcdc)}</div><div class="fc-stat-sub">median tonight</div></div>
+            <div class="fc-stat-box"><div class="fc-stat-label">Temp</div>
+              <div class="fc-stat-value">${fmtT(medTmp)}</div><div class="fc-stat-sub">2 m above ground</div></div>
+            <div class="fc-stat-box"><div class="fc-stat-label">Humidity</div>
+              <div class="fc-stat-value">${fmt1(medRh)}</div><div class="fc-stat-sub">relative humidity</div></div>
+            <div class="fc-stat-box"><div class="fc-stat-label">Wind</div>
+              <div class="fc-stat-value">${fmtW(medWspd)}</div><div class="fc-stat-sub">10 m surface wind</div></div>
+          </div>
+        </div>
+
+        <div class="fc-chart-card">
+          <div class="fc-chart-header"><span>☁️</span><h3>Hourly Cloud Cover — Tonight</h3></div>
+          <div class="fc-chart-body">
+            <div class="fc-canvas-wrap"><canvas id="cloudCanvas" class="fc-canvas"></canvas></div>
+          </div>
+        </div>
+
+        <div class="fc-layers-card">
+          <div class="section-header"><span>✨</span><h2>Astronomy Conditions</h2></div>
+          <div class="fc-cond-grid">
+            <div class="fc-cond-box">
+              <div class="fc-cond-icon">🌬</div>
+              <div class="fc-cond-label">Seeing</div>
+              <div class="fc-cond-value">${seeing.text}</div>
+              <div class="fc-cond-rating ${seeing.cls}">${seeing.label}</div>
+            </div>
+            <div class="fc-cond-box">
+              <div class="fc-cond-icon">💧</div>
+              <div class="fc-cond-label">Dew Risk</div>
+              <div class="fc-cond-value">${dew.text}</div>
+              <div class="fc-cond-rating ${dew.cls}">${dew.label}</div>
+            </div>
+            <div class="fc-cond-box">
+              <div class="fc-cond-icon">☔</div>
+              <div class="fc-cond-label">Precip. Chance</div>
+              <div class="fc-cond-value">${med(nightHrs,'precip_prob')!==null ? Math.round(med(nightHrs,'precip_prob'))+'%' : '—'} chance</div>
+              <div class="fc-cond-rating ${(med(nightHrs,'precip_prob')??0)<20?'good':(med(nightHrs,'precip_prob')??0)<50?'warn':'poor'}">
+                ${(med(nightHrs,'precip_prob')??0)<20?'Low':(med(nightHrs,'precip_prob')??0)<50?'Moderate':'High'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fc-chart-card">
+          <div class="fc-chart-header"><span>🌡</span><h3>Temperature &amp; Dew Point — 48 Hours</h3></div>
+          <div class="fc-chart-body">
+            <div class="fc-canvas-wrap"><canvas id="tempDewCanvas" class="fc-canvas"></canvas></div>
+            <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--text-dim)">
+                <div style="width:20px;height:2px;background:#e08060;border-radius:2px"></div><span style="color:#e0a080">Temperature</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--text-dim)">
+                <div style="width:20px;height:2px;background:#60b0d8;border-radius:2px;border-top:2px dashed #60b0d8"></div><span style="color:#80c0e0">Dew Point</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--text-dim)">
+                <div style="width:20px;height:8px;background:rgba(160,180,220,0.25);border-radius:2px"></div><span>Spread (dew risk)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fc-chart-card">
+          <div class="fc-chart-header">
+            <span>🔮</span>
+            <h3>Tomorrow Night · ${new Date(Date.now()+86400000).toLocaleDateString('en-CA',{weekday:'long',month:'short',day:'numeric'})}</h3>
+            <span style="margin-left:auto;font-family:'Cinzel',serif;font-size:0.72rem;letter-spacing:0.08em;
+              text-transform:uppercase;padding:2px 8px;border-radius:4px;${tmrwBadgeStyle}">
+              ${tmrwOutlook.label}
+            </span>
+          </div>
+          <div class="fc-chart-body">
+            ${tmrwHrs.length >= 2
+              ? `<div class="fc-canvas-wrap"><canvas id="cloudCanvasTmrw" class="fc-canvas"></canvas></div>
+                 <p style="font-size:0.78rem;color:var(--text-dim);font-style:italic;margin-top:8px;">${tmrwOutlook.sub}</p>`
+              : `<p class="no-targets" style="padding:16px 0">Forecast data unavailable for tomorrow night.</p>`}
+          </div>
+        </div>
+
+        <p style="font-size:0.75rem;color:var(--text-dim);text-align:center;font-style:italic;margin-top:-4px;margin-bottom:16px;">
+          Location: ${locStr} · Model: ${modelName} via Open-Meteo
+        </p>
+      `;
+
+      // Build 48-hr window: from current hour for 48 hours
+      const now48 = new Date();
+      const end48 = new Date(now48.getTime() + 48 * 3600000);
+      const hours48 = allHours.filter(h => h.time >= now48 && h.time <= end48);
+
+      // Store globally for resize redraws
+      window._fcNightHrs = nightHrs;
+      window._fcTmrwHrs  = tmrwHrs.length >= 2 ? tmrwHrs : null;
+      window._fcHours48  = hours48.length >= 2 ? hours48 : null;
+
+      requestAnimationFrame(() => {
+        drawCloudChart('cloudCanvas', nightHrs);
+        if (tmrwHrs.length >= 2) drawCloudChart('cloudCanvasTmrw', tmrwHrs);
+        if (hours48.length >= 2) drawTempDewChart('tempDewCanvas', hours48);
+      });
+    })
+    .catch(err => {
+      console.error('Forecast fetch error:', err);
+      container.innerHTML = `
+        <div class="fc-error">
+          <strong>Could not load forecast</strong><br>${err.message}<br><br>
+          <span style="font-size:0.8rem;">Check your internet connection and try again.</span>
+        </div>`;
+    });
+}
+
 // ── Tab switching ─────────────────────────────────────────────────────────────
 let planetsLoaded = false;
 
@@ -2028,6 +2640,15 @@ function switchTab(name) {
     loadEvents();
   }
 
+  // Lazy-load forecast tab on first visit
+  if (name === 'forecast' && !forecastLoaded) {
+    forecastLoaded = true;
+    getLocation(
+      () => renderForecast(),
+      ()  => renderForecast()
+    );
+  }
+
   // Redraw canvas if switching back to planets
   if (name === 'planets' && window._altDatasets) {
     requestAnimationFrame(() => drawAltitudeGraph(window._altDatasets, window._altSteps));
@@ -2045,6 +2666,23 @@ window.addEventListener('load', () => {
     indicator.style.left  = (btnRect.left - barRect.left) + 'px';
     indicator.style.width = btnRect.width + 'px';
   }
+});
+
+
+// ── Redraw canvases on window resize / zoom ───────────────────────────────────
+let _resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    // Planet altitude chart
+    if (window._altDatasets) {
+      drawAltitudeGraph(window._altDatasets, window._altSteps);
+    }
+    // Forecast charts (only if their data is stored)
+    if (window._fcNightHrs)   drawCloudChart('cloudCanvas',   window._fcNightHrs);
+    if (window._fcTmrwHrs)    drawCloudChart('cloudCanvasTmrw', window._fcTmrwHrs);
+    if (window._fcHours48)    drawTempDewChart('tempDewCanvas',  window._fcHours48);
+  }, 150); // 150ms debounce — won't fire while actively zooming
 });
 
 // Register service worker
