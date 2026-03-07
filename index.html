@@ -417,6 +417,10 @@
     .fc-stats-grid { grid-template-columns:repeat(2,1fr); }
     .fc-stat-box:nth-child(2) { border-right:none; }
     .fc-stat-box:nth-child(3),.fc-stat-box:nth-child(4) { border-top:1px solid rgba(201,168,76,0.08); }
+    .fc-current-grid { grid-template-columns:repeat(2,1fr) !important; }
+    .fc-current-grid .fc-stat-box:nth-child(2) { border-right:none; }
+    .fc-current-grid .fc-stat-box:nth-child(3),
+    .fc-current-grid .fc-stat-box:nth-child(4) { border-top:1px solid rgba(201,168,76,0.08); }
   }
   .fc-chart-card { background:var(--surface); border:1px solid rgba(201,168,76,0.15);
     border-radius:14px; overflow:hidden; margin-bottom:14px; }
@@ -1270,10 +1274,13 @@ function getSunsetTime(date) {
   } catch(e) { return null; }
 }
 function getSunriseTime(date) {
-  const midnight = new Date(date); midnight.setHours(0, 0, 0, 0);
+  // Search from noon today so we find tomorrow morning's sunrise,
+  // which matches the same overnight window as nightEnd (astronomical dawn).
+  // Searching from midnight would return today's already-past sunrise.
+  const noon = new Date(date); noon.setHours(12, 0, 0, 0);
   const observer = new Astronomy.Observer(OBS_LAT, OBS_LON, 0);
   try {
-    return Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, +1, midnight, 1)?.date;
+    return Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, +1, noon, 1)?.date;
   } catch(e) { return null; }
 }
 
@@ -1411,23 +1418,37 @@ function renderPlanets() {
   // Build altitude graph for visible planets
   let graphHTML = '';
   if (visiblePlanets.length === 0) {
-    graphHTML = '<div class="no-visible">No planets visible in tonight\'s window (18:00–06:00)</div>';
+    graphHTML = '<div class="no-visible">No planets visible in tonight\'s window</div>';
   } else {
-    // Sample altitude every 20 minutes across 18:00-06:00 (= 12h = 37 points)
-    const STEPS  = 72; // every 10 mins
-    const H_START = 18;
-    const H_END   = 30; // 06:00 next day = hour 30
+    // Dynamic x-axis bounds:
+    //   Left  = floor(nightStart_hour - 1) — 1hr before darkness, rounded down
+    //   Right = floor(nightEnd_hour   + 1) — 1hr after dawn,      rounded down
+    // Hours after midnight are expressed as 24+ so the timeline is continuous.
+    const nsH    = nightStart.getHours() + nightStart.getMinutes() / 60;
+    const neH    = nightEnd.getHours()   + nightEnd.getMinutes()   / 60;
+    const neNorm = neH < 12 ? neH + 24 : neH; // e.g. 05:51 -> 29.85
+
+    const H_START = Math.floor(nsH - 1);      // e.g. floor(19.6 - 1) = 18
+    const H_END   = Math.floor(neNorm + 1);   // e.g. floor(29.85 + 1) = 30
+
+    // 10-minute sampling resolution across the dynamic window
+    const STEPS = Math.round((H_END - H_START) * 6);
 
     const datasets = visiblePlanets.map(planet => {
       const points = [];
       for (let i = 0; i <= STEPS; i++) {
         const h = H_START + (H_END - H_START) * i / STEPS;
-		const sampleDate = new Date(midnight.getTime() + h * 3600000);
+        const sampleDate = new Date(midnight.getTime() + h * 3600000);
         const alt = planetAltitude(planet.name, h, sampleDate);
         points.push(alt);
       }
       return { planet, points };
     });
+
+    const fmtH = hNorm => {
+      const h = hNorm >= 24 ? hNorm - 24 : hNorm;
+      return String(h).padStart(2,'0') + ':00';
+    };
 
     // Build legend
     const legendItems = visiblePlanets.map(p =>
@@ -1438,32 +1459,37 @@ function renderPlanets() {
       </div>`
     ).join('') + `<div class="legend-item" id="cloudLegendItem" style="display:${window._cloudNightHours ? 'flex' : 'none'}">
       <div class="legend-dot" style="border-top:2px dashed rgba(140,170,230,0.8);background:transparent;height:0"></div>
-      <span style="color:rgba(160,185,235,0.9)">☁</span><span>Cloud cover</span>
+      <span style="color:rgba(160,185,235,0.9)">&#x2601;</span><span>Cloud cover</span>
     </div>`;
 
     graphHTML = `
       <div class="altitude-graph-wrap">
-        <div class="altitude-graph-title">Altitude above Horizon &mdash; 18:00 to 06:00</div>
+        <div class="altitude-graph-title">Altitude above Horizon &mdash; ${fmtH(H_START)} to ${fmtH(H_END)}</div>
         <div class="altitude-graph-container">
           <canvas id="altCanvas" class="altitude-canvas"></canvas>
         </div>
         <div class="altitude-legend">${legendItems}</div>
       </div>`;
 
-    // Store datasets for canvas drawing after DOM insertion
+    // Store globally for resize redraws
     window._altDatasets = datasets;
     window._altSteps    = STEPS;
+    window._altHStart   = H_START;
+    window._altHEnd     = H_END;
   }
 
   body.innerHTML = listHTML + graphHTML;
 
   // Draw canvas after DOM is ready
   if (visiblePlanets.length > 0) {
-    requestAnimationFrame(() => drawAltitudeGraph(window._altDatasets, window._altSteps));
+    requestAnimationFrame(() => drawAltitudeGraph(window._altDatasets, window._altSteps, window._altHStart, window._altHEnd));
   }
 }
 
-function drawAltitudeGraph(datasets, STEPS) {
+function drawAltitudeGraph(datasets, STEPS, H_START, H_END) {
+  // Fall back to fixed window if bounds not provided (e.g. called from resize before renderPlanets)
+  H_START = H_START ?? 18;
+  H_END   = H_END   ?? 30;
   const canvas = document.getElementById('altCanvas');
   if (!canvas) return;
   const dpr    = window.devicePixelRatio || 1;
@@ -1528,8 +1554,6 @@ function drawAltitudeGraph(datasets, STEPS) {
   ctx.fillText('0°', PAD_L - 4, yOf(0) + 3);
 
   // X axis hour labels — adapt label interval to available width
-  // 13 labels (18:00–06:00) collapse on ~360 px screens; use pixel gap to decide.
-  const H_START = 18, H_END = 30;
   const altMinLabelGap = 36; // px minimum between label centres
   const altHourPx = gW / (H_END - H_START); // px per hour
   const altLabelEvery = Math.max(1, Math.ceil(altMinLabelGap / altHourPx));
@@ -1602,7 +1626,6 @@ function drawAltitudeGraph(datasets, STEPS) {
 
   // Dawn / dusk twilight lines
   const { nightStart, nightEnd } = getNightWindow(today());
-  const midnight = new Date(today()); midnight.setHours(0,0,0,0);
 
   for (const { time, label } of [
     { time: nightStart, label: 'Dark' },
@@ -1610,7 +1633,9 @@ function drawAltitudeGraph(datasets, STEPS) {
   ]) {
     if (!time) continue;
     const h = time.getHours() + time.getMinutes() / 60;
-    const hNorm = h < 6 ? h + 24 : h;
+    // Normalise: early-morning hours (< H_START) belong to the "next day" portion
+    // of the overnight window, so add 24 to keep them continuous with H_START..H_END.
+    const hNorm = h < H_START ? h + 24 : h;
     if (hNorm < H_START || hNorm > H_END) continue;
 
     const x = PAD_L + ((hNorm - H_START) / (H_END - H_START)) * gW;
@@ -1634,10 +1659,9 @@ function drawAltitudeGraph(datasets, STEPS) {
 
   // Current time vertical bar
   const now = new Date();
-  const tz  = getTimezoneOffset(today());
   const currentH = now.getHours() + now.getMinutes() / 60;
-  // Normalise to graph window (18:00–06:00, where post-midnight = 24+h)
-  const currentHNorm = currentH < 6 ? currentH + 24 : currentH;
+  // Normalise: early-morning hours (< H_START) are the post-midnight portion of the window
+  const currentHNorm = currentH < H_START ? currentH + 24 : currentH;
   if (currentHNorm >= H_START && currentHNorm <= H_END) {
     const x = PAD_L + ((currentHNorm - H_START) / (H_END - H_START)) * gW;
     // Glow effect
@@ -2510,7 +2534,64 @@ function renderForecast() {
         ? 'background:rgba(180,60,60,0.15);color:#c97c7c;border:1px solid rgba(180,60,60,0.3)'
         : 'background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.3)';
 
+      // Find the hourly data point closest to right now
+      const nowMs = Date.now();
+      const currentHr = allHours.reduce((best, h) =>
+        Math.abs(h.time - nowMs) < Math.abs(best.time - nowMs) ? h : best
+      , allHours[0]);
+
+      const fmtDew  = v => v !== null && v !== undefined ? Math.round(v) + '°C' : '—';
+      const fmtCld  = v => v !== null && v !== undefined ? Math.round(v) + '%'  : '—';
+      const fmtWnd  = v => v !== null && v !== undefined ? (parseFloat(v)/3.6).toFixed(1) + ' m/s' : '—';
+      const fmtTmp2 = v => v !== null && v !== undefined ? Math.round(v) + '°C' : '—';
+
+      // Derive a simple cloud descriptor for the current hour
+      const cldNow = currentHr.tcdc ?? null;
+      const cldDesc = cldNow === null ? '—'
+        : cldNow <= 10  ? 'Clear'
+        : cldNow <= 30  ? 'Mostly Clear'
+        : cldNow <= 55  ? 'Partly Cloudy'
+        : cldNow <= 80  ? 'Mostly Cloudy'
+        : 'Overcast';
+      const cldCls = cldNow === null ? ''
+        : cldNow <= 10  ? 'good'
+        : cldNow <= 30  ? 'good'
+        : cldNow <= 55  ? 'warn'
+        : 'poor';
+
+      const nowLabel = currentHr.time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
+
       container.innerHTML = `
+        <div class="fc-chart-card" style="margin-bottom:14px;">
+          <div class="fc-chart-header">
+            <span>📍</span>
+            <h3>Current Conditions</h3>
+            <span style="margin-left:auto;font-size:0.72rem;color:var(--text-dim);font-style:italic;">as of ${nowLabel}</span>
+          </div>
+          <div class="fc-current-grid" style="display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid rgba(201,168,76,0.1);">
+            <div class="fc-stat-box">
+              <div class="fc-stat-label">Temp</div>
+              <div class="fc-stat-value">${fmtTmp2(currentHr.tmp)}</div>
+              <div class="fc-stat-sub">2 m above ground</div>
+            </div>
+            <div class="fc-stat-box">
+              <div class="fc-stat-label">Dew Point</div>
+              <div class="fc-stat-value">${fmtDew(currentHr.dewp)}</div>
+              <div class="fc-stat-sub">spread: ${currentHr.tmp !== null && currentHr.dewp !== null ? Math.round(currentHr.tmp - currentHr.dewp) + '°C' : '—'}</div>
+            </div>
+            <div class="fc-stat-box">
+              <div class="fc-stat-label">Cloud</div>
+              <div class="fc-stat-value">${fmtCld(currentHr.tcdc)}</div>
+              <div class="fc-stat-sub fc-cond-rating ${cldCls}" style="display:inline-block;margin-top:4px;">${cldDesc}</div>
+            </div>
+            <div class="fc-stat-box" style="border-right:none;">
+              <div class="fc-stat-label">Wind</div>
+              <div class="fc-stat-value">${fmtWnd(currentHr.wspd)}</div>
+              <div class="fc-stat-sub">10 m surface wind</div>
+            </div>
+          </div>
+        </div>
+
         <div class="fc-outlook-card">
           <div class="fc-outlook-row">
             <div class="fc-outlook-icon">${outlook.icon}</div>
@@ -2674,7 +2755,7 @@ function switchTab(name) {
 
   // Redraw canvas if switching back to planets
   if (name === 'planets' && window._altDatasets) {
-    requestAnimationFrame(() => drawAltitudeGraph(window._altDatasets, window._altSteps));
+    requestAnimationFrame(() => drawAltitudeGraph(window._altDatasets, window._altSteps, window._altHStart, window._altHEnd));
   }
 }
 
@@ -2699,7 +2780,7 @@ window.addEventListener('resize', () => {
   _resizeTimer = setTimeout(() => {
     // Planet altitude chart
     if (window._altDatasets) {
-      drawAltitudeGraph(window._altDatasets, window._altSteps);
+      drawAltitudeGraph(window._altDatasets, window._altSteps, window._altHStart, window._altHEnd);
     }
     // Forecast charts (only if their data is stored)
     if (window._fcNightHrs)   drawCloudChart('cloudCanvas',   window._fcNightHrs);
