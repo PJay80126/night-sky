@@ -1527,17 +1527,17 @@ function drawAltitudeGraph(datasets, STEPS) {
   ctx.textAlign = 'right';
   ctx.fillText('0°', PAD_L - 4, yOf(0) + 3);
 
-  // X axis hour labels: 18,20,22,00,02,04,06
-  const hourLabels = [18,20,22,0,2,4,6];
+  // X axis hour labels — every 1 hour across 18:00–06:00
   const H_START = 18, H_END = 30;
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.font = '9px sans-serif';
   ctx.textAlign = 'center';
-  for (const h of hourLabels) {
-    const hNorm = h < 18 ? h + 24 : h;
+  for (let hNorm = H_START; hNorm <= H_END; hNorm++) {
     const x = PAD_L + ((hNorm - H_START) / (H_END - H_START)) * gW;
-    ctx.fillText(h === 0 ? '00:00' : h + ':00', x, H - PAD_B + 14);
-    // Vertical tick
+    if (x < PAD_L + 4 || x > PAD_L + gW - 4) continue;
+    const h = hNorm >= 24 ? hNorm - 24 : hNorm;
+    const label = String(h).padStart(2,'0') + ':00';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(label, x, H - PAD_B + 14);
     ctx.strokeStyle = 'rgba(255,255,255,0.08)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -2151,6 +2151,8 @@ function parseForecast(data) {
   const h = data.hourly;
   return h.time.map((t, i) => ({
     time:  new Date(t),
+    localHour: parseInt(t.slice(11, 13), 10), // extract HH from 'YYYY-MM-DDTHH:MM' — immune to timezone parsing
+    localDate: t.slice(0, 10),                    // extract 'YYYY-MM-DD' — immune to timezone parsing
     tcdc:  h.cloud_cover[i],
     lcdc:  h.cloud_cover_low[i],
     mcdc:  h.cloud_cover_mid[i],
@@ -2166,20 +2168,38 @@ function parseForecast(data) {
 // Filter parsed hours to tonight's 18:00–06:00 window
 // NOTE: renamed to avoid clash with existing getNightWindow(date) in Events tab
 function getForecastNightHours(hours) {
-  const mn = new Date(); mn.setHours(0,0,0,0);
+  if (!hours.length) return [];
+  // Derive today's local date from the data itself — avoids any UTC/DST mismatch
+  // Find the data point whose localHour matches the current browser hour most closely
   const nowH = new Date().getHours();
-  const baseDay = (nowH < 6) ? new Date(mn.getTime() - 86400000) : new Date(mn);
-  const s = new Date(baseDay.getTime() + 18 * 3600000);
-  const e = new Date(baseDay.getTime() + 30 * 3600000);
-  return hours.filter(h => h.time >= s && h.time <= e);
+  // Use localHour < 6 to detect post-midnight
+  const todayStr   = hours.find(h => h.localHour === (nowH < 12 ? nowH : nowH))?.localDate
+                  || hours[0].localDate;
+  // Get unique sorted dates from data
+  const dates = [...new Set(hours.map(h => h.localDate))].sort();
+  const todayIdx = dates.indexOf(todayStr);
+  const eveningStr = nowH < 6 ? (dates[todayIdx - 1] || dates[0]) : todayStr;
+  const morningStr = nowH < 6 ? todayStr : (dates[todayIdx + 1] || dates[dates.length - 1]);
+  return hours.filter(h =>
+    (h.localDate === eveningStr && h.localHour >= 18) ||
+    (h.localDate === morningStr && h.localHour <= 6)
+  );
 }
 
 function getTomorrowNightHours(hours) {
-  const mn = new Date(); mn.setHours(0,0,0,0);
-  const tmrw = new Date(mn.getTime() + 86400000);
-  const s = new Date(tmrw.getTime() + 18 * 3600000);
-  const e = new Date(tmrw.getTime() + 30 * 3600000);
-  return hours.filter(h => h.time >= s && h.time <= e);
+  if (!hours.length) return [];
+  const nowH = new Date().getHours();
+  const dates = [...new Set(hours.map(h => h.localDate))].sort();
+  // Tonight's evening date index
+  const todayStr   = hours.find(h => h.localHour === nowH)?.localDate || hours[0].localDate;
+  const todayIdx   = dates.indexOf(todayStr);
+  const eveningIdx = nowH < 6 ? todayIdx : todayIdx + 1;
+  const tmrwStr    = dates[eveningIdx]     || dates[dates.length - 1];
+  const dayAfterStr= dates[eveningIdx + 1] || dates[dates.length - 1];
+  return hours.filter(h =>
+    (h.localDate === tmrwStr     && h.localHour >= 18) ||
+    (h.localDate === dayAfterStr && h.localHour <= 6)
+  );
 }
 
 function getOutlook(nightHours) {
@@ -2293,18 +2313,24 @@ function drawTempDewChart(canvasId, hours48) {
 
   // X-axis time labels — every 6 hours
   ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='9px sans-serif'; ctx.textAlign='center';
-  const sixHours = 6 * 3600000;
-  const firstTick = new Date(Math.ceil(tStart.getTime() / sixHours) * sixHours);
-  for (let t = firstTick; t <= tEnd; t = new Date(t.getTime() + sixHours)) {
-    const x = xT(t);
-    if (x < PAD_L+8 || x > PAD_L+gW-8) continue;
-    const h = t.getHours();
-    const label = h === 0
-      ? t.toLocaleDateString('en-CA',{month:'short',day:'numeric'})
-      : h + ':00';
-    ctx.fillStyle = h === 0 ? 'rgba(201,168,76,0.7)' : 'rgba(255,255,255,0.35)';
+  // Gridline every data point, labels every 6 hours + date at midnight
+  for (const h of hours48) {
+    const x = xT(h.time);
+    if (x < PAD_L+4 || x > PAD_L+gW-4) continue;
+    const hr = h.localHour;
+    // Subtle gridline every hour
+    ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,PAD_T); ctx.lineTo(x,PAD_T+gH); ctx.stroke();
+    // Label at midnight (show date) and every 6 hours
+    if (hr !== 0 && hr % 6 !== 0) continue;
+    const label = hr === 0
+      ? new Date(h.localDate + 'T12:00').toLocaleDateString('en-CA',{month:'short',day:'numeric'})
+      : String(hr).padStart(2,'0') + ':00';
+    ctx.fillStyle = hr === 0 ? 'rgba(201,168,76,0.8)' : 'rgba(255,255,255,0.4)';
     ctx.fillText(label, x, H-PAD_B+12);
-    ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
+    // Slightly more visible gridline at labelled ticks
+    ctx.strokeStyle = hr === 0 ? 'rgba(201,168,76,0.2)' : 'rgba(255,255,255,0.1)';
+    ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(x,PAD_T); ctx.lineTo(x,PAD_T+gH); ctx.stroke();
   }
 
@@ -2383,14 +2409,16 @@ function drawCloudChart(canvasId, nightHrs) {
     ctx.textAlign='right'; ctx.fillText(pct+'%', PAD_L-4, yV(pct)+3);
   }
 
-  // Hour labels
-  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='9px sans-serif'; ctx.textAlign='center';
-  const H_START=18, H_END=30;
-  for (const h of [18,20,22,0,2,4,6]) {
-    const hN = h < 18 ? h+24 : h;
-    const x = PAD_L + ((hN - H_START) / (H_END - H_START)) * gW;
-    ctx.fillText(h===0?'00:00':h+':00', x, H-PAD_B+12);
-    ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
+  // Gridlines every data point, labels every even hour only
+  ctx.font='9px sans-serif'; ctx.textAlign='center';
+  for (const h of nightHrs) {
+    const x = xT(h.time);
+    if (x < PAD_L + 4 || x > PAD_L + gW - 4) continue;
+    const hr = h.localHour;
+    const label = String(hr).padStart(2,'0') + ':00';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(label, x, H-PAD_B+12);
+    ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(x,PAD_T); ctx.lineTo(x,PAD_T+gH); ctx.stroke();
   }
 
