@@ -1,7 +1,9 @@
-const CACHE = 'night-sky-v16';
+const CACHE = 'night-sky-v17';
 const ASSETS = [
   '.',
   'index.html',
+  'styles.css',
+  'app.js',
   'manifest.json',
   'icon-192.png',
   'icon-512.png',
@@ -13,7 +15,7 @@ const ASSETS = [
   'photos/Endymion_Atlas_and_Hercules.png',
   'photos/Fracastorius_Piccolomini_Theophilus_Cyrillus_Catharina_and_Altai_Scarp.png',
   'photos/Gassendi_and_Mersenius.png',
-  'photos/Herschel_Ptolomaeus_Alphonsus_and_Arzachel.png',
+  'photos/Herschel_Ptolemaeus_Alphonsus_and_Arzachel.png',
   'photos/Hevelius_and_Grimaldi.png',
   'photos/Hipparchus_Halley_and_Albategnius.png',
   'photos/Julius_Caesar.png',
@@ -43,7 +45,7 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
-// Activate: clean up old caches
+// Activate: delete old caches
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
