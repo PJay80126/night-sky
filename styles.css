@@ -161,7 +161,7 @@ h1 {
 .target-group-label { font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.2em; color: var(--gold-dim); text-transform: uppercase; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(201,168,76,0.1); }
 
 .target-item {
-  display: flex; align-items: flex-start; gap: 10px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
   padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.04);
   animation: fadeIn 0.3s ease forwards; opacity: 0;
   cursor: pointer; border-radius: 6px; transition: background 0.15s;
@@ -377,6 +377,100 @@ h1 {
 .chart-legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-dim); }
 .chart-legend-swatch-line { width: 20px; height: 2px; border-radius: 2px; }
 .chart-legend-swatch-box  { width: 20px; height: 8px; border-radius: 2px; }
+
+/* ── Timeline marker elements ────────────────────────────────────────────── */
+.timeline-phase-icon {
+  position: absolute; top: -10px; transform: translateX(-50%);
+  font-size: 0.7rem; color: var(--text-dim); font-family: 'Cinzel', serif;
+}
+.timeline-tick {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 2px; height: 12px; background: rgba(201,168,76,0.3); border-radius: 1px;
+}
+
+/* ── Tab page headers (Events, Forecast) ─────────────────────────────────── */
+.tab-page-header { margin-bottom: 20px; }
+.tab-page-icon {
+  font-size: 3rem; line-height: 1;
+  filter: drop-shadow(0 0 16px rgba(201,168,76,0.5));
+}
+.tab-page-icon.forecast { filter: drop-shadow(0 0 16px rgba(201,168,76,0.4)); }
+.tab-page-header h1 { margin-top: 14px; }
+
+/* ── Time display spans (day-of-week suffix) ─────────────────────────────── */
+.time-day-suffix { font-size: 0.7em; opacity: 0.6; }
+
+/* ── Sun/dark window rows ────────────────────────────────────────────────── */
+.sun-row-top    { margin-top: 4px; }
+.sun-row-bottom { margin-top: 2px; }
+
+/* ── Target item inner layout ────────────────────────────────────────────── */
+.target-item-row { display: flex; align-items: flex-start; gap: 10px; width: 100%; }
+.target-item-edge-msg {
+  font-size: 0.85rem; color: var(--text-dim); font-style: italic;
+  padding: 8px 6px; line-height: 1.6;
+}
+
+/* ── Planet / legend colours (set via CSS custom property) ───────────────── */
+.planet-color  { color: var(--planet-color); }
+.legend-color  { color: var(--planet-color); }
+.legend-dot-bg { background: var(--planet-color); }
+
+/* ── Cloud legend item ───────────────────────────────────────────────────── */
+.cloud-legend-dot {
+  border-top: 2px dashed rgba(140,170,230,0.8);
+  background: transparent; height: 0;
+}
+.cloud-legend-label { color: rgba(160,185,235,0.9); }
+
+/* ── Forecast — current conditions grid ─────────────────────────────────── */
+.fc-current-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid rgba(201,168,76,0.1);
+}
+.fc-stat-box-last { border-right: none; }
+.fc-stat-sub-badge { display: inline-block; margin-top: 4px; }
+.fc-header-timestamp {
+  margin-left: auto; font-size: 0.72rem;
+  color: var(--text-dim); font-style: italic;
+}
+
+/* ── Forecast — tomorrow night badge ────────────────────────────────────── */
+.fc-tmrw-badge {
+  margin-left: auto; font-family: 'Cinzel', serif;
+  font-size: 0.72rem; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 4px;
+}
+.fc-tmrw-badge.good { background: rgba(76,175,122,0.15);  color: #4caf7a;        border: 1px solid rgba(76,175,122,0.3); }
+.fc-tmrw-badge.warn { background: rgba(201,168,76,0.15);  color: var(--gold);    border: 1px solid rgba(201,168,76,0.3); }
+.fc-tmrw-badge.poor { background: rgba(180,60,60,0.15);   color: #c97c7c;        border: 1px solid rgba(180,60,60,0.3); }
+
+/* ── Forecast — chart sub-text ───────────────────────────────────────────── */
+.fc-chart-sub {
+  font-size: 0.78rem; color: var(--text-dim);
+  font-style: italic; margin-top: 8px;
+}
+.fc-no-data { padding: 16px 0; }
+.fc-footer {
+  font-size: 0.75rem; color: var(--text-dim);
+  text-align: center; font-style: italic;
+  margin-top: -4px; margin-bottom: 16px;
+}
+.fc-error-detail { font-size: 0.8rem; }
+
+.no-events-msg { padding: 30px 0; }
+.events-location-note--hidden { display: none; }
+
+/* ── Temp/dew chart legend swatches ─────────────────────────────────────── */
+.fc-legend-temp       { background: #e08060; }
+.fc-legend-temp-label { color: #e0a080; }
+.fc-legend-dew        { background: #60b0d8; border-top: 2px dashed #60b0d8; }
+.fc-legend-dew-label  { color: #80c0e0; }
+.fc-legend-spread     { background: rgba(160,180,220,0.25); }
+
+/* ── Forecast current card spacing ──────────────────────────────────────── */
+.fc-current-card { margin-bottom: 14px; }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {

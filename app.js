@@ -543,7 +543,7 @@ function render() {
     const edgeLabel = 'Q-Day ' + (qday >= 0 ? '+' : '') + qday + ' — Tonight\'s Best';
     html += '<div class="target-group">'
           + '<div class="target-group-label">' + edgeLabel + '</div>'
-          + '<div style="font-size:0.85rem;color:var(--text-dim);font-style:italic;padding:8px 6px;line-height:1.6;">'
+          + '<div class="target-item-edge-msg">'
           + 'No features are optimally placed tonight — you\'re at the edge of the observing window. '
           + 'Features from the previous night may still be catchable depending on libration.'
           + '</div></div>';
@@ -561,8 +561,8 @@ function render() {
       const hasPhoto = imgKey && PHOTO_DATA[imgKey];
       const caption  = imgKey ? (PHOTO_CAPTIONS[imgKey] || imgKey.replace(/_/g, ' ')) : '';
 
-      html += `<div class="target-item" style="animation-delay:${delay}ms;flex-direction:column">
-        <div style="display:flex;align-items:flex-start;gap:10px;width:100%">
+      html += `<div class="target-item" style="animation-delay:${delay}ms">
+        <div class="target-item-row">
           <span class="target-bullet">◆</span>
           <div class="target-info">
             <div class="target-name">${t.name}</div>
@@ -658,7 +658,7 @@ function getPlanetRiseTransitSet(name, date) {
     if (!d) return '—';
     const t   = d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false });
     const day = d.toLocaleDateString([], { weekday:'short' });
-    return `${t} <span style="font-size:0.7em;opacity:0.6">${day}</span>`;
+    return `${t} <span class="time-day-suffix">${day}</span>`;
   };
 
   return {
@@ -747,13 +747,13 @@ function renderPlanets() {
     if (!d) return '—';
     const time = d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false });
     const day  = d.toLocaleDateString([], { weekday:'short' });
-    return `${time} <span style="font-size:0.7em;opacity:0.6">${day}</span>`;
+    return `${time} <span class="time-day-suffix">${day}</span>`;
   };
 
   let listHTML = `
     <div class="planets-date">Times in ${tzLabel} &middot; ${now.toLocaleDateString('en-CA',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
-    <div class="sun-date" style="margin-top:4px">🌅 Sunset ${fmtTime(sunset)} &nbsp;·&nbsp; 🌑 Dark ${fmtTime(nightStart)}</div>
-    <div class="sun-date" style="margin-top:2px">🌄 Dawn ${fmtTime(nightEnd)} &nbsp;·&nbsp; 🌞 Sunrise ${fmtTime(sunrise)}</div>`;
+    <div class="sun-date sun-row-top">🌅 Sunset ${fmtTime(sunset)} &nbsp;·&nbsp; 🌑 Dark ${fmtTime(nightStart)}</div>
+    <div class="sun-date sun-row-bottom">🌄 Dawn ${fmtTime(nightEnd)} &nbsp;·&nbsp; 🌞 Sunrise ${fmtTime(sunrise)}</div>`;
 
   const visiblePlanets = [];
   let delay = 0;
@@ -814,14 +814,14 @@ function renderPlanets() {
     };
 
     const legendItems = visiblePlanets.map(p =>
-      `<div class="legend-item">
-        <div class="legend-dot" style="background:${p.color}"></div>
-        <span style="color:${p.color}">${p.icon}</span>
+      `<div class="legend-item" style="--planet-color:${p.color}">
+        <div class="legend-dot legend-dot-bg"></div>
+        <span class="legend-color">${p.icon}</span>
         <span>${p.name}</span>
       </div>`
     ).join('') + `<div class="legend-item" id="cloudLegendItem" style="display:${State.cloudNightHours ? 'flex' : 'none'}">
-      <div class="legend-dot" style="border-top:2px dashed rgba(140,170,230,0.8);background:transparent;height:0"></div>
-      <span style="color:rgba(160,185,235,0.9)">&#x2601;</span><span>Cloud cover</span>
+      <div class="legend-dot cloud-legend-dot"></div>
+      <span class="cloud-legend-label">&#x2601;</span><span>Cloud cover</span>
     </div>`;
 
     graphHTML = `
@@ -1154,11 +1154,11 @@ function renderEventsList() {
     : _allEvents.filter(e => e.type === _activeFilter);
 
   if (events.length === 0) {
-    body.innerHTML = '<p class="no-targets" style="padding:30px 0">No events of this type in the next 90 days.</p>';
+    body.innerHTML = '<p class="no-targets no-events-msg">No events of this type in the next 90 days.</p>';
     return;
   }
 
-  let html      = '<div id="eventsLocationNote" class="events-location-note" style="display:none">📍 Enable location for visibility info</div>';
+  let html      = '<div id="eventsLocationNote" class="events-location-note events-location-note--hidden">📍 Enable location for visibility info</div>';
   let lastMonth = '';
   let delay     = 0;
 
@@ -1641,12 +1641,179 @@ function drawTempDewChart(canvasId, hours48) {
   ctx.beginPath(); ctx.roundRect(PAD_L, PAD_T, gW, gH, 6); ctx.stroke();
 }
 
+// ── Forecast rendering helpers ────────────────────────────────────────────
+// Each helper builds one card's worth of HTML. renderForecast() assembles them.
+
+/** Returns the median value of a numeric field across an array of hour objects. */
+function forecastMedian(arr, key) {
+  const vals = arr.map(h => h[key]).filter(v => v !== null && v !== undefined);
+  if (!vals.length) return null;
+  const s = [...vals].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
+}
+
+/** Builds the "Current Conditions" card HTML. */
+function buildCurrentConditionsHTML(currentHr) {
+  const fmtTmp = v => v !== null && v !== undefined ? Math.round(v) + '°C' : '—';
+  const fmtCld = v => v !== null && v !== undefined ? Math.round(v) + '%'  : '—';
+  const fmtWnd = v => v !== null && v !== undefined ? (parseFloat(v) / 3.6).toFixed(1) + ' m/s' : '—';
+
+  const cldNow  = currentHr.tcdc ?? null;
+  const cldDesc = cldNow === null ? '—'
+    : cldNow <= 10 ? 'Clear'
+    : cldNow <= 30 ? 'Mostly Clear'
+    : cldNow <= 55 ? 'Partly Cloudy'
+    : cldNow <= 80 ? 'Mostly Cloudy'
+    : 'Overcast';
+  const cldCls = cldNow === null ? '' : cldNow <= 30 ? 'good' : cldNow <= 55 ? 'warn' : 'poor';
+  const spread  = currentHr.tmp !== null && currentHr.dewp !== null
+    ? Math.round(currentHr.tmp - currentHr.dewp) + '°C' : '—';
+  const nowLabel = currentHr.time.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false });
+
+  return `
+    <div class="fc-chart-card fc-current-card">
+      <div class="fc-chart-header">
+        <span>📍</span>
+        <h3>Current Conditions</h3>
+        <span class="fc-header-timestamp">as of ${nowLabel}</span>
+      </div>
+      <div class="fc-current-grid">
+        <div class="fc-stat-box">
+          <div class="fc-stat-label">Temp</div>
+          <div class="fc-stat-value">${fmtTmp(currentHr.tmp)}</div>
+          <div class="fc-stat-sub">2 m above ground</div>
+        </div>
+        <div class="fc-stat-box">
+          <div class="fc-stat-label">Dew Point</div>
+          <div class="fc-stat-value">${fmtTmp(currentHr.dewp)}</div>
+          <div class="fc-stat-sub">spread: ${spread}</div>
+        </div>
+        <div class="fc-stat-box">
+          <div class="fc-stat-label">Cloud</div>
+          <div class="fc-stat-value">${fmtCld(currentHr.tcdc)}</div>
+          <div class="fc-stat-sub fc-cond-rating ${cldCls} fc-stat-sub-badge">${cldDesc}</div>
+        </div>
+        <div class="fc-stat-box fc-stat-box-last">
+          <div class="fc-stat-label">Wind</div>
+          <div class="fc-stat-value">${fmtWnd(currentHr.wspd)}</div>
+          <div class="fc-stat-sub">10 m surface wind</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/** Builds the "Tonight's Outlook" card HTML. */
+function buildOutlookHTML(outlook, medians, tzLabel) {
+  const fmt1 = v => v !== null ? Math.round(v) + '%'  : '—';
+  const fmtT = v => v !== null ? Math.round(v) + '°C' : '—';
+  const fmtW = v => v !== null ? (parseFloat(v) / 3.6).toFixed(1) + ' m/s' : '—';
+
+  return `
+    <div class="fc-outlook-card">
+      <div class="fc-outlook-row">
+        <div class="fc-outlook-icon">${outlook.icon}</div>
+        <div class="fc-outlook-text">
+          <div class="fc-outlook-label">Tonight's Outlook · 18:00–06:00 ${tzLabel}</div>
+          <div class="fc-outlook-value ${outlook.cls}">${outlook.label}</div>
+          <div class="fc-outlook-sub">${outlook.sub}</div>
+        </div>
+      </div>
+      <div class="fc-stats-grid">
+        <div class="fc-stat-box"><div class="fc-stat-label">Cloud</div><div class="fc-stat-value">${fmt1(medians.tcdc)}</div><div class="fc-stat-sub">median tonight</div></div>
+        <div class="fc-stat-box"><div class="fc-stat-label">Temp</div><div class="fc-stat-value">${fmtT(medians.tmp)}</div><div class="fc-stat-sub">2 m above ground</div></div>
+        <div class="fc-stat-box"><div class="fc-stat-label">Humidity</div><div class="fc-stat-value">${fmt1(medians.rh)}</div><div class="fc-stat-sub">relative humidity</div></div>
+        <div class="fc-stat-box"><div class="fc-stat-label">Wind</div><div class="fc-stat-value">${fmtW(medians.wspd)}</div><div class="fc-stat-sub">10 m surface wind</div></div>
+      </div>
+    </div>`;
+}
+
+/** Builds the "Astronomy Conditions" (seeing / dew / precip) card HTML. */
+function buildAstroConditionsHTML(seeing, dew, precipMed) {
+  const precipCls = (precipMed ?? 0) < 20 ? 'good' : (precipMed ?? 0) < 50 ? 'warn' : 'poor';
+  const precipLbl = (precipMed ?? 0) < 20 ? 'Low'  : (precipMed ?? 0) < 50 ? 'Moderate' : 'High';
+
+  return `
+    <div class="fc-layers-card">
+      <div class="section-header"><span>✨</span><h2>Astronomy Conditions</h2></div>
+      <div class="fc-cond-grid">
+        <div class="fc-cond-box">
+          <div class="fc-cond-icon">🌬</div>
+          <div class="fc-cond-label">Seeing</div>
+          <div class="fc-cond-value">${seeing.text}</div>
+          <div class="fc-cond-rating ${seeing.cls}">${seeing.label}</div>
+        </div>
+        <div class="fc-cond-box">
+          <div class="fc-cond-icon">💧</div>
+          <div class="fc-cond-label">Dew Risk</div>
+          <div class="fc-cond-value">${dew.text}</div>
+          <div class="fc-cond-rating ${dew.cls}">${dew.label}</div>
+        </div>
+        <div class="fc-cond-box">
+          <div class="fc-cond-icon">☔</div>
+          <div class="fc-cond-label">Precip. Chance</div>
+          <div class="fc-cond-value">${precipMed !== null ? Math.round(precipMed) + '%' : '—'} chance</div>
+          <div class="fc-cond-rating ${precipCls}">${precipLbl}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/** Builds the "Temperature & Dew Point — 48 Hours" chart card HTML. */
+function buildTempDewCardHTML() {
+  return `
+    <div class="fc-chart-card">
+      <div class="fc-chart-header"><span>🌡</span><h3>Temperature &amp; Dew Point — 48 Hours</h3></div>
+      <div class="fc-chart-body">
+        <div class="fc-canvas-wrap"><canvas id="tempDewCanvas" class="fc-canvas"></canvas></div>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <div class="chart-legend-swatch-line fc-legend-temp"></div>
+            <span class="fc-legend-temp-label">Temperature</span>
+          </div>
+          <div class="chart-legend-item">
+            <div class="chart-legend-swatch-line fc-legend-dew"></div>
+            <span class="fc-legend-dew-label">Dew Point</span>
+          </div>
+          <div class="chart-legend-item">
+            <div class="chart-legend-swatch-box fc-legend-spread"></div>
+            <span>Spread (dew risk)</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/** Builds the "Tomorrow Night" chart card HTML. */
+function buildTomorrowCardHTML(tmrwOutlook, tmrwHrs) {
+  const tmrwDate   = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { weekday:'long', month:'short', day:'numeric' });
+  const badgeCls   = (tmrwOutlook.cls === 'clear' || tmrwOutlook.cls === 'mostly-clear') ? 'good'
+                   : tmrwOutlook.cls === 'cloudy' ? 'poor' : 'warn';
+  const chartOrMsg = tmrwHrs.length >= 2
+    ? `<div class="fc-canvas-wrap"><canvas id="cloudCanvasTmrw" class="fc-canvas"></canvas></div>
+       <p class="fc-chart-sub">${tmrwOutlook.sub}</p>`
+    : `<p class="no-targets fc-no-data">Forecast data unavailable for tomorrow night.</p>`;
+
+  return `
+    <div class="fc-chart-card">
+      <div class="fc-chart-header">
+        <span>🔮</span>
+        <h3>Tomorrow Night · ${tmrwDate}</h3>
+        <span class="fc-tmrw-badge ${badgeCls}">${tmrwOutlook.label}</span>
+      </div>
+      <div class="fc-chart-body">${chartOrMsg}</div>
+    </div>`;
+}
+
+// ── renderForecast ────────────────────────────────────────────────────────
+
 function renderForecast() {
   const container = document.getElementById('fcContent');
+
   if (State.obsLat === null || State.obsLon === null) {
     container.innerHTML = `<div class="fc-error">Location unavailable — enable location services and reload.</div>`;
     return;
   }
+
   container.innerHTML = `<div class="fc-loading"><div class="fc-spinner"></div>Fetching forecast for your location…</div>`;
 
   fetchForecast(State.obsLat, State.obsLon)
@@ -1656,7 +1823,7 @@ function renderForecast() {
       const nightHrs  = getForecastNightHours(allHours);
       const tmrwHrs   = getTomorrowNightHours(allHours);
 
-      // Share cloud data with planet chart overlay
+      // Share cloud data with planet altitude chart overlay
       State.cloudNightHours = nightHrs;
       if (State.altDatasets) {
         requestAnimationFrame(() => {
@@ -1666,191 +1833,46 @@ function renderForecast() {
         });
       }
 
+      // Compute medians for tonight's window
+      const medians = {
+        tcdc: forecastMedian(nightHrs, 'tcdc'),
+        tmp:  forecastMedian(nightHrs, 'tmp'),
+        rh:   forecastMedian(nightHrs, 'rh'),
+        wspd: forecastMedian(nightHrs, 'wspd'),
+      };
+      const precipMed = forecastMedian(nightHrs, 'precip_prob');
+
       const outlook     = getOutlook(nightHrs);
       const tmrwOutlook = getOutlook(tmrwHrs);
+      const seeing      = getSeeingRating(medians.wspd);
+      const dew         = getDewRisk(medians.rh);
 
-      // Median helper
-      function med(arr, key) {
-        const vals = arr.map(h => h[key]).filter(v => v !== null && v !== undefined);
-        if (!vals.length) return null;
-        const s = [...vals].sort((a, b) => a - b);
-        return s[Math.floor(s.length / 2)];
-      }
-
-      const medTcdc = med(nightHrs,'tcdc'), medLcdc = med(nightHrs,'lcdc');
-      const medMcdc = med(nightHrs,'mcdc'), medHcdc = med(nightHrs,'hcdc');
-      const medTmp  = med(nightHrs,'tmp'),  medRh   = med(nightHrs,'rh');
-      const medWspd = med(nightHrs,'wspd');
-
-      const seeing = getSeeingRating(medWspd);
-      const dew    = getDewRisk(medRh);
-
-      const fmt1 = v => v !== null ? Math.round(v) + '%'  : '—';
-      const fmtT = v => v !== null ? Math.round(v) + '°C' : '—';
-      const fmtW = v => v !== null ? (parseFloat(v) / 3.6).toFixed(1) + ' m/s' : '—';
-
-      const tzLabel = new Date().toLocaleDateString('en-CA',{timeZoneName:'short'}).split(', ')[1] || 'local';
-      const locStr  = `${Math.abs(State.obsLat).toFixed(2)}°${State.obsLat >= 0 ? 'N' : 'S'}, ${Math.abs(State.obsLon).toFixed(2)}°${State.obsLon >= 0 ? 'E' : 'W'}`;
-
-      const tmrwBadgeStyle = (tmrwOutlook.cls === 'clear' || tmrwOutlook.cls === 'mostly-clear')
-        ? 'background:rgba(76,175,122,0.15);color:#4caf7a;border:1px solid rgba(76,175,122,0.3)'
-        : tmrwOutlook.cls === 'cloudy'
-        ? 'background:rgba(180,60,60,0.15);color:#c97c7c;border:1px solid rgba(180,60,60,0.3)'
-        : 'background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.3)';
-
-      // Current conditions — find hourly data point closest to right now
+      // Current hour — data point closest to right now
       const nowMs     = Date.now();
       const currentHr = allHours.reduce((best, h) =>
         Math.abs(h.time - nowMs) < Math.abs(best.time - nowMs) ? h : best
       , allHours[0]);
 
-      const fmtDew  = v => v !== null && v !== undefined ? Math.round(v) + '°C' : '—';
-      const fmtCld  = v => v !== null && v !== undefined ? Math.round(v) + '%'  : '—';
-      const fmtWnd  = v => v !== null && v !== undefined ? (parseFloat(v) / 3.6).toFixed(1) + ' m/s' : '—';
-      const fmtTmp2 = v => v !== null && v !== undefined ? Math.round(v) + '°C' : '—';
+      const tzLabel = new Date().toLocaleDateString('en-CA', { timeZoneName:'short' }).split(', ')[1] || 'local';
+      const locStr  = `${Math.abs(State.obsLat).toFixed(2)}°${State.obsLat >= 0 ? 'N' : 'S'}, `
+                    + `${Math.abs(State.obsLon).toFixed(2)}°${State.obsLon >= 0 ? 'E' : 'W'}`;
 
-      const cldNow  = currentHr.tcdc ?? null;
-      const cldDesc = cldNow === null ? '—'
-        : cldNow <= 10 ? 'Clear'
-        : cldNow <= 30 ? 'Mostly Clear'
-        : cldNow <= 55 ? 'Partly Cloudy'
-        : cldNow <= 80 ? 'Mostly Cloudy'
-        : 'Overcast';
-      const cldCls = cldNow === null ? ''
-        : cldNow <= 30 ? 'good'
-        : cldNow <= 55 ? 'warn'
-        : 'poor';
-
-      const nowLabel = currentHr.time.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false });
-      const precipMed = med(nightHrs, 'precip_prob');
-      const precipCls = (precipMed ?? 0) < 20 ? 'good' : (precipMed ?? 0) < 50 ? 'warn' : 'poor';
-      const precipLbl = (precipMed ?? 0) < 20 ? 'Low' : (precipMed ?? 0) < 50 ? 'Moderate' : 'High';
-
-      container.innerHTML = `
-        <div class="fc-chart-card" style="margin-bottom:14px;">
-          <div class="fc-chart-header">
-            <span>📍</span>
-            <h3>Current Conditions</h3>
-            <span style="margin-left:auto;font-size:0.72rem;color:var(--text-dim);font-style:italic;">as of ${nowLabel}</span>
-          </div>
-          <div class="fc-current-grid" style="display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid rgba(201,168,76,0.1);">
-            <div class="fc-stat-box">
-              <div class="fc-stat-label">Temp</div>
-              <div class="fc-stat-value">${fmtTmp2(currentHr.tmp)}</div>
-              <div class="fc-stat-sub">2 m above ground</div>
-            </div>
-            <div class="fc-stat-box">
-              <div class="fc-stat-label">Dew Point</div>
-              <div class="fc-stat-value">${fmtDew(currentHr.dewp)}</div>
-              <div class="fc-stat-sub">spread: ${currentHr.tmp !== null && currentHr.dewp !== null ? Math.round(currentHr.tmp - currentHr.dewp) + '°C' : '—'}</div>
-            </div>
-            <div class="fc-stat-box">
-              <div class="fc-stat-label">Cloud</div>
-              <div class="fc-stat-value">${fmtCld(currentHr.tcdc)}</div>
-              <div class="fc-stat-sub fc-cond-rating ${cldCls}" style="display:inline-block;margin-top:4px;">${cldDesc}</div>
-            </div>
-            <div class="fc-stat-box" style="border-right:none;">
-              <div class="fc-stat-label">Wind</div>
-              <div class="fc-stat-value">${fmtWnd(currentHr.wspd)}</div>
-              <div class="fc-stat-sub">10 m surface wind</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="fc-outlook-card">
-          <div class="fc-outlook-row">
-            <div class="fc-outlook-icon">${outlook.icon}</div>
-            <div class="fc-outlook-text">
-              <div class="fc-outlook-label">Tonight's Outlook · 18:00–06:00 ${tzLabel}</div>
-              <div class="fc-outlook-value ${outlook.cls}">${outlook.label}</div>
-              <div class="fc-outlook-sub">${outlook.sub}</div>
-            </div>
-          </div>
-          <div class="fc-stats-grid">
-            <div class="fc-stat-box"><div class="fc-stat-label">Cloud</div><div class="fc-stat-value">${fmt1(medTcdc)}</div><div class="fc-stat-sub">median tonight</div></div>
-            <div class="fc-stat-box"><div class="fc-stat-label">Temp</div><div class="fc-stat-value">${fmtT(medTmp)}</div><div class="fc-stat-sub">2 m above ground</div></div>
-            <div class="fc-stat-box"><div class="fc-stat-label">Humidity</div><div class="fc-stat-value">${fmt1(medRh)}</div><div class="fc-stat-sub">relative humidity</div></div>
-            <div class="fc-stat-box"><div class="fc-stat-label">Wind</div><div class="fc-stat-value">${fmtW(medWspd)}</div><div class="fc-stat-sub">10 m surface wind</div></div>
-          </div>
-        </div>
-
-        <div class="fc-chart-card">
+      // Assemble page from helper-built cards
+      container.innerHTML =
+        buildCurrentConditionsHTML(currentHr)      +
+        buildOutlookHTML(outlook, medians, tzLabel) +
+        `<div class="fc-chart-card">
           <div class="fc-chart-header"><span>☁️</span><h3>Hourly Cloud Cover — Tonight</h3></div>
-          <div class="fc-chart-body">
-            <div class="fc-canvas-wrap"><canvas id="cloudCanvas" class="fc-canvas"></canvas></div>
-          </div>
-        </div>
-
-        <div class="fc-layers-card">
-          <div class="section-header"><span>✨</span><h2>Astronomy Conditions</h2></div>
-          <div class="fc-cond-grid">
-            <div class="fc-cond-box">
-              <div class="fc-cond-icon">🌬</div>
-              <div class="fc-cond-label">Seeing</div>
-              <div class="fc-cond-value">${seeing.text}</div>
-              <div class="fc-cond-rating ${seeing.cls}">${seeing.label}</div>
-            </div>
-            <div class="fc-cond-box">
-              <div class="fc-cond-icon">💧</div>
-              <div class="fc-cond-label">Dew Risk</div>
-              <div class="fc-cond-value">${dew.text}</div>
-              <div class="fc-cond-rating ${dew.cls}">${dew.label}</div>
-            </div>
-            <div class="fc-cond-box">
-              <div class="fc-cond-icon">☔</div>
-              <div class="fc-cond-label">Precip. Chance</div>
-              <div class="fc-cond-value">${precipMed !== null ? Math.round(precipMed) + '%' : '—'} chance</div>
-              <div class="fc-cond-rating ${precipCls}">${precipLbl}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="fc-chart-card">
-          <div class="fc-chart-header"><span>🌡</span><h3>Temperature &amp; Dew Point — 48 Hours</h3></div>
-          <div class="fc-chart-body">
-            <div class="fc-canvas-wrap"><canvas id="tempDewCanvas" class="fc-canvas"></canvas></div>
-            <div class="chart-legend">
-              <div class="chart-legend-item">
-                <div class="chart-legend-swatch-line" style="background:#e08060"></div>
-                <span style="color:#e0a080">Temperature</span>
-              </div>
-              <div class="chart-legend-item">
-                <div class="chart-legend-swatch-line" style="background:#60b0d8;border-top:2px dashed #60b0d8"></div>
-                <span style="color:#80c0e0">Dew Point</span>
-              </div>
-              <div class="chart-legend-item">
-                <div class="chart-legend-swatch-box" style="background:rgba(160,180,220,0.25)"></div>
-                <span>Spread (dew risk)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="fc-chart-card">
-          <div class="fc-chart-header">
-            <span>🔮</span>
-            <h3>Tomorrow Night · ${new Date(Date.now() + 86400000).toLocaleDateString('en-CA',{weekday:'long',month:'short',day:'numeric'})}</h3>
-            <span style="margin-left:auto;font-family:'Cinzel',serif;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;padding:2px 8px;border-radius:4px;${tmrwBadgeStyle}">
-              ${tmrwOutlook.label}
-            </span>
-          </div>
-          <div class="fc-chart-body">
-            ${tmrwHrs.length >= 2
-              ? `<div class="fc-canvas-wrap"><canvas id="cloudCanvasTmrw" class="fc-canvas"></canvas></div>
-                 <p style="font-size:0.78rem;color:var(--text-dim);font-style:italic;margin-top:8px;">${tmrwOutlook.sub}</p>`
-              : `<p class="no-targets" style="padding:16px 0">Forecast data unavailable for tomorrow night.</p>`}
-          </div>
-        </div>
-
-        <p style="font-size:0.75rem;color:var(--text-dim);text-align:center;font-style:italic;margin-top:-4px;margin-bottom:16px;">
-          Location: ${locStr} · Model: ${modelName} via Open-Meteo
-        </p>
-      `;
+          <div class="fc-chart-body"><div class="fc-canvas-wrap"><canvas id="cloudCanvas" class="fc-canvas"></canvas></div></div>
+        </div>`                                    +
+        buildAstroConditionsHTML(seeing, dew, precipMed) +
+        buildTempDewCardHTML()                     +
+        buildTomorrowCardHTML(tmrwOutlook, tmrwHrs)+
+        `<p class="fc-footer">Location: ${locStr} · Model: ${modelName} via Open-Meteo</p>`;
 
       // 48-hr window for temp/dew chart
       const now48   = new Date();
-      const end48   = new Date(now48.getTime() + 48 * 3600000);
-      const hours48 = allHours.filter(h => h.time >= now48 && h.time <= end48);
+      const hours48 = allHours.filter(h => h.time >= now48 && h.time <= new Date(now48.getTime() + 48 * 3600000));
 
       State.fcNightHrs = nightHrs;
       State.fcTmrwHrs  = tmrwHrs.length >= 2 ? tmrwHrs : null;
@@ -1858,16 +1880,16 @@ function renderForecast() {
 
       requestAnimationFrame(() => {
         drawCloudChart('cloudCanvas', nightHrs);
-        if (tmrwHrs.length >= 2)  drawCloudChart('cloudCanvasTmrw', tmrwHrs);
-        if (hours48.length >= 2)  drawTempDewChart('tempDewCanvas', hours48);
+        if (tmrwHrs.length >= 2) drawCloudChart('cloudCanvasTmrw', tmrwHrs);
+        if (hours48.length >= 2) drawTempDewChart('tempDewCanvas', hours48);
       });
     })
     .catch(err => {
       console.error('Forecast fetch error:', err);
-      document.getElementById('fcContent').innerHTML = `
+      container.innerHTML = `
         <div class="fc-error">
           <strong>Could not load forecast</strong><br>${err.message}<br><br>
-          <span style="font-size:0.8rem;">Check your internet connection and try again.</span>
+          <span class="fc-error-detail">Check your internet connection and try again.</span>
         </div>`;
     });
 }
