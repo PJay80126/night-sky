@@ -494,3 +494,85 @@ h1 {
   .fc-current-grid .fc-stat-box:nth-child(3),
   .fc-current-grid .fc-stat-box:nth-child(4) { border-top: 1px solid rgba(201,168,76,0.08); }
 }
+
+/* ── Messier tab ─────────────────────────────────────────────────────────── */
+.messier-summary {
+  padding: 8px 4px 14px;
+  font-size: 0.9rem;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.04em;
+}
+.messier-count-good { color: var(--good); }
+.messier-count-dim  { color: var(--text-dim); }
+
+.messier-row {
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+}
+.messier-id {
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--gold);
+  min-width: 32px;
+  padding-top: 2px;
+  letter-spacing: 0.04em;
+}
+.messier-id-below { color: var(--text-dim); }
+
+.messier-icon {
+  font-size: 1rem;
+  min-width: 20px;
+  text-align: center;
+  padding-top: 1px;
+}
+.messier-info {
+  flex: 1;
+  min-width: 0;
+}
+.messier-name {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.3;
+}
+.messier-con {
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 0.8rem;
+}
+.messier-desc {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+.messier-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.messier-mag {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-family: 'Cinzel', serif;
+}
+.messier-row-below {
+  opacity: 0.55;
+}
+.messier-below-group { margin-top: 8px; }
+.messier-toggle-hint {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  margin-left: 6px;
+}
+.messier-below-list .messier-row { padding: 6px 0; }
+
+@media (max-width: 480px) {
+  .messier-desc { display: none; }
+  .messier-name { font-size: 0.82rem; }
+}

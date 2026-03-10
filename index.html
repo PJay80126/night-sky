@@ -38,6 +38,10 @@
       <span class="tab-icon">✨</span>
       <span class="tab-label">Events</span>
     </button>
+    <button class="tab-btn"        id="tab-messier"  onclick="switchTab('messier')">
+      <span class="tab-icon">🔭</span>
+      <span class="tab-label">Messier</span>
+    </button>
     <button class="tab-btn"        id="tab-forecast" onclick="switchTab('forecast')">
       <span class="tab-icon">🌤</span>
       <span class="tab-label">Forecast</span>
@@ -179,6 +183,30 @@
     </div>
 
   </div><!-- /panel-events -->
+
+
+  <!-- ── Messier tab ──────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="panel-messier">
+
+    <div class="moon-header tab-page-header">
+      <div class="tab-page-icon">🔭</div>
+      <h1>Messier Catalogue</h1>
+      <p class="subtitle">Tonight's deep-sky objects, ranked by altitude</p>
+    </div>
+
+    <div class="events-filter" id="messierFilter">
+      <button class="filter-chip active" data-mfilter="all"     onclick="filterMessier('all',this)">All</button>
+      <button class="filter-chip"        data-mfilter="galaxy"  onclick="filterMessier('galaxy',this)">Galaxies</button>
+      <button class="filter-chip"        data-mfilter="nebula"  onclick="filterMessier('nebula',this)">Nebulae</button>
+      <button class="filter-chip"        data-mfilter="cluster" onclick="filterMessier('cluster',this)">Clusters</button>
+      <button class="filter-chip"        data-mfilter="other"   onclick="filterMessier('other',this)">Other</button>
+    </div>
+
+    <div id="messierBody">
+      <p class="no-targets no-events-msg">Loading Messier catalogue…</p>
+    </div>
+
+  </div><!-- /panel-messier -->
 
 
   <!-- ── Forecast tab ─────────────────────────────────────────────────── -->
