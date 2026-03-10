@@ -363,11 +363,44 @@ h1 {
 .fc-canvas { width: 100%; border-radius: 8px; display: block; }
 .fc-layers-card { background: var(--surface); border: 1px solid rgba(201,168,76,0.15); border-radius: 14px; overflow: hidden; margin-bottom: 14px; padding: 18px 20px; }
 .fc-cond-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 14px; }
-.fc-cond-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(201,168,76,0.1); border-radius: 10px; padding: 12px 10px; text-align: center; }
+.fc-cond-box {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(201,168,76,0.1);
+  border-radius: 10px; padding: 12px 8px; text-align: center;
+  min-width: 0; overflow: hidden; word-break: break-word;
+}
 .fc-cond-icon { font-size: 1.4rem; margin-bottom: 6px; }
-.fc-cond-label { font-size: 0.65rem; font-family: 'Cinzel', serif; letter-spacing: 0.08em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; }
-.fc-cond-value { font-size: 0.75rem; color: var(--text-dim); font-style: italic; margin-bottom: 6px; line-height: 1.3; }
-.fc-cond-rating { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 4px; display: inline-block; text-transform: uppercase; }
+.fc-cond-label {
+  font-size: 0.62rem; font-family: 'Cinzel', serif; letter-spacing: 0.06em;
+  color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px;
+}
+.fc-cond-value {
+  font-size: 0.72rem; color: var(--text-dim); font-style: italic;
+  margin-bottom: 6px; line-height: 1.3; word-break: break-word;
+}
+.fc-cond-rating {
+  font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.06em;
+  padding: 2px 6px; border-radius: 4px; display: inline-block;
+  text-transform: uppercase; max-width: 100%; word-break: break-word;
+}
+
+/* ── Location error card ─────────────────────────────────────────────────── */
+.loc-error-card {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; padding: 32px 20px; text-align: center;
+}
+.loc-error-icon { font-size: 2.5rem; opacity: 0.7; }
+.loc-error-msg { font-size: 0.95rem; color: var(--text-dim); font-style: italic; line-height: 1.5; max-width: 280px; }
+.loc-error-detail { font-size: 0.82rem; color: var(--text-dim); font-style: italic; }
+.loc-retry-btn {
+  font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.12em;
+  text-transform: uppercase; padding: 9px 22px; border-radius: 20px;
+  border: 1px solid rgba(201,168,76,0.5); background: rgba(201,168,76,0.1);
+  color: var(--gold-light); cursor: pointer; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; margin-top: 4px;
+}
+.loc-retry-btn:hover, .loc-retry-btn:active {
+  background: rgba(201,168,76,0.22); border-color: var(--gold-light);
+}
 .fc-cond-rating.good { background: rgba(76,175,122,0.15); color: #4caf7a; border: 1px solid rgba(76,175,122,0.3); }
 .fc-cond-rating.warn { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
 .fc-cond-rating.poor { background: rgba(180,60,60,0.15); color: #c97c7c; border: 1px solid rgba(180,60,60,0.3); }
@@ -493,6 +526,13 @@ h1 {
   .fc-current-grid .fc-stat-box:nth-child(2) { border-right: none; }
   .fc-current-grid .fc-stat-box:nth-child(3),
   .fc-current-grid .fc-stat-box:nth-child(4) { border-top: 1px solid rgba(201,168,76,0.08); }
+
+  /* Astronomy Conditions: stack to 1 column on very narrow screens */
+  .fc-cond-grid { grid-template-columns: 1fr; }
+  .fc-cond-box { display: flex; align-items: center; gap: 12px; text-align: left; padding: 10px 14px; }
+  .fc-cond-icon { font-size: 1.2rem; margin-bottom: 0; flex-shrink: 0; }
+  .fc-cond-label { margin-bottom: 2px; }
+  .fc-cond-value { margin-bottom: 2px; }
 }
 
 /* ── Messier tab ─────────────────────────────────────────────────────────── */

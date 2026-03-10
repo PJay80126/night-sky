@@ -624,6 +624,50 @@ function getLocation(onSuccess, onFail) {
   );
 }
 
+/**
+ * Builds a standardised "location unavailable" message with a Retry button.
+ * @param {string} tabName  - the tab to re-trigger on retry ('planets'|'forecast'|'messier')
+ * @param {string} [detail] - optional extra line of context
+ */
+function locationErrorHTML(tabName, detail) {
+  const extra = detail ? `<p class="loc-error-detail">${detail}</p>` : '';
+  return `
+    <div class="loc-error-card">
+      <div class="loc-error-icon">📍</div>
+      <p class="loc-error-msg">Location unavailable — please enable location services in your browser.</p>
+      ${extra}
+      <button class="loc-retry-btn" onclick="retryLocation('${tabName}')">
+        ↺ Retry Location
+      </button>
+    </div>`;
+}
+
+/** Called by the Retry button — clears load guards so the tab re-fetches. */
+function retryLocation(tabName) {
+  if (tabName === 'planets') {
+    State.planetsLoaded = false;
+    document.getElementById('planetsBody').innerHTML =
+      '<p class="no-targets">Requesting location…</p>';
+    getLocation(() => renderPlanets(), () => {
+      document.getElementById('planetsBody').innerHTML = locationErrorHTML('planets');
+    });
+  } else if (tabName === 'forecast') {
+    State.forecastLoaded = false;
+    document.getElementById('fcContent').innerHTML =
+      '<div class="fc-loading"><div class="fc-spinner"></div>Requesting location…</div>';
+    getLocation(() => renderForecast(), () => {
+      document.getElementById('fcContent').innerHTML = locationErrorHTML('forecast');
+    });
+  } else if (tabName === 'messier') {
+    _messierLoaded = false;
+    document.getElementById('messierBody').innerHTML =
+      '<p class="no-targets">Requesting location…</p>';
+    getLocation(() => renderMessier(), () => {
+      document.getElementById('messierBody').innerHTML = locationErrorHTML('messier');
+    });
+  }
+}
+
 
 // ── 8. Planet data & astronomy helpers ───────────────────────────────────
 
@@ -734,7 +778,7 @@ function renderPlanets() {
   const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
 
   if (State.obsLat === null || State.obsLon === null) {
-    body.innerHTML = '<p class="no-targets">Location unavailable — please ensure location services are enabled in your browser.</p>';
+    body.innerHTML = locationErrorHTML('planets');
     return;
   }
 
@@ -1810,7 +1854,7 @@ function renderForecast() {
   const container = document.getElementById('fcContent');
 
   if (State.obsLat === null || State.obsLon === null) {
-    container.innerHTML = `<div class="fc-error">Location unavailable — enable location services and reload.</div>`;
+    container.innerHTML = locationErrorHTML('forecast', 'Enable location access then tap Retry.');
     return;
   }
 
@@ -2066,7 +2110,7 @@ function renderMessier() {
   const body = document.getElementById('messierBody');
 
   if (State.obsLat === null || State.obsLon === null) {
-    body.innerHTML = '<p class="no-targets">Location unavailable — please enable location services.</p>';
+    body.innerHTML = locationErrorHTML('messier');
     return;
   }
 
