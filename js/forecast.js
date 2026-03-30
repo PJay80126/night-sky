@@ -1,0 +1,574 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Night Sky Observer — forecast.js
+// Forecast tab: fetch, parse, charts, render
+// ═══════════════════════════════════════════════════════════════════════════
+
+
+async function fetchForecast(lat, lon) {
+  const vars = [
+    'cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high',
+    'temperature_2m','relative_humidity_2m','wind_speed_10m',
+    'dew_point_2m','precipitation_probability',
+  ].join(',');
+
+  const url = `https://api.open-meteo.com/v1/forecast`
+    + `?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}`
+    + `&hourly=${vars}&models=gem_seamless&forecast_days=3&timezone=auto`;
+
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Open-Meteo returned HTTP ${resp.status}`);
+  const data = await resp.json();
+  if (!data.hourly || !data.hourly.time) throw new Error('Unexpected response from Open-Meteo.');
+  return data;
+}
+
+function parseForecast(data) {
+  const h = data.hourly;
+  return h.time.map((t, i) => ({
+    time:        new Date(t),
+    localHour:   parseInt(t.slice(11, 13), 10),
+    localDate:   t.slice(0, 10),
+    tcdc:        h.cloud_cover[i],
+    lcdc:        h.cloud_cover_low[i],
+    mcdc:        h.cloud_cover_mid[i],
+    hcdc:        h.cloud_cover_high[i],
+    tmp:         h.temperature_2m[i],
+    dewp:        h.dew_point_2m ? h.dew_point_2m[i] : null,
+    rh:          h.relative_humidity_2m[i],
+    wspd:        h.wind_speed_10m[i],
+    precip_prob: h.precipitation_probability[i],
+  }));
+}
+
+function getForecastNightHours(hours) {
+  if (!hours.length) return [];
+  const nowH      = new Date().getHours();
+  const todayStr  = hours.find(h => h.localHour === nowH)?.localDate || hours[0].localDate;
+  const dates     = [...new Set(hours.map(h => h.localDate))].sort();
+  const todayIdx  = dates.indexOf(todayStr);
+  const eveningStr = nowH < 6 ? (dates[todayIdx - 1] || dates[0]) : todayStr;
+  const morningStr = nowH < 6 ? todayStr : (dates[todayIdx + 1] || dates[dates.length - 1]);
+  return hours.filter(h =>
+    (h.localDate === eveningStr && h.localHour >= 18) ||
+    (h.localDate === morningStr && h.localHour <= 6)
+  );
+}
+
+function getTomorrowNightHours(hours) {
+  if (!hours.length) return [];
+  const nowH       = new Date().getHours();
+  const dates      = [...new Set(hours.map(h => h.localDate))].sort();
+  const todayStr   = hours.find(h => h.localHour === nowH)?.localDate || hours[0].localDate;
+  const todayIdx   = dates.indexOf(todayStr);
+  const eveningIdx = nowH < 6 ? todayIdx : todayIdx + 1;
+  const tmrwStr    = dates[eveningIdx]     || dates[dates.length - 1];
+  const dayAfterStr= dates[eveningIdx + 1] || dates[dates.length - 1];
+  return hours.filter(h =>
+    (h.localDate === tmrwStr      && h.localHour >= 18) ||
+    (h.localDate === dayAfterStr  && h.localHour <= 6)
+  );
+}
+
+function getOutlook(nightHours) {
+  if (!nightHours.length) return { icon:'❓', label:'No Data', sub:'Forecast unavailable', cls:'partly' };
+  const sorted = [...nightHours.map(h => h.tcdc ?? 0)].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  if (median <= 10) return { icon:'⭐', label:'Clear',         sub:'Excellent — minimal cloud cover expected',   cls:'clear'        };
+  if (median <= 30) return { icon:'🌙', label:'Mostly Clear',  sub:'Good — occasional cloud possible',          cls:'mostly-clear' };
+  if (median <= 55) return { icon:'⛅', label:'Partly Cloudy', sub:'Mixed — intermittent cloud cover',          cls:'partly'       };
+  if (median <= 80) return { icon:'🌥', label:'Mostly Cloudy', sub:'Poor — cloud will interrupt viewing',       cls:'cloudy'       };
+  return               { icon:'☁️', label:'Overcast',       sub:'Cloud cover will prevent observing tonight', cls:'cloudy'       };
+}
+
+function getSeeingRating(wspd_kmh) {
+  if (wspd_kmh === null || wspd_kmh === undefined) return { label:'Unknown', cls:'warn', text:'No wind data' };
+  const w = parseFloat(wspd_kmh) / 3.6;
+  if (w < 2) return { label:'Excellent', cls:'good', text:`${w.toFixed(1)} m/s — very steady air`   };
+  if (w < 5) return { label:'Good',      cls:'good', text:`${w.toFixed(1)} m/s — calm conditions`   };
+  if (w < 9) return { label:'Fair',      cls:'warn', text:`${w.toFixed(1)} m/s — some turbulence`   };
+  return           { label:'Poor',      cls:'poor', text:`${w.toFixed(1)} m/s — turbulent air`      };
+}
+
+function getDewRisk(rh) {
+  if (rh === null || rh === undefined) return { label:'Unknown', cls:'warn', text:'No humidity data' };
+  const r = parseFloat(rh);
+  if (r < 50) return { label:'Low',       cls:'good', text:`${Math.round(r)}% RH` };
+  if (r < 70) return { label:'Moderate',  cls:'warn', text:`${Math.round(r)}% RH` };
+  if (r < 85) return { label:'High',      cls:'warn', text:`${Math.round(r)}% RH — monitor optics` };
+  return             { label:'Very High', cls:'poor', text:`${Math.round(r)}% RH — dew likely` };
+}
+
+function drawCloudChart(canvasId, nightHrs) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || nightHrs.length < 2) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.offsetWidth;
+  const H   = Math.round(W * 0.32);
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const PAD_L=36, PAD_R=12, PAD_T=12, PAD_B=28;
+  const gW = W - PAD_L - PAD_R, gH = H - PAD_T - PAD_B;
+
+  ctx.fillStyle = '#0d1220'; ctx.fillRect(0, 0, W, H);
+  const bg = ctx.createLinearGradient(PAD_L, PAD_T, PAD_L, PAD_T + gH);
+  bg.addColorStop(0, 'rgba(40,60,120,0.35)'); bg.addColorStop(1, 'rgba(10,15,30,0.15)');
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.roundRect(PAD_L, PAD_T, gW, gH, 6); ctx.fill();
+
+  const tStart = nightHrs[0].time, tEnd = nightHrs[nightHrs.length - 1].time;
+  const tRange = (tEnd - tStart) || 1;
+  function xT(t) { return PAD_L + ((t - tStart) / tRange) * gW; }
+  function yV(v) { return PAD_T + gH - (v / 100) * gH; }
+
+  // Grid lines
+  for (const pct of [25, 50, 75, 100]) {
+    ctx.strokeStyle = pct === 50 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(PAD_L, yV(pct)); ctx.lineTo(PAD_L + gW, yV(pct)); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(pct + '%', PAD_L - 4, yV(pct) + 3);
+  }
+
+  // X-axis labels — adaptive interval
+  const approxHourPx = gW / (nightHrs.length > 1 ? nightHrs.length - 1 : 1);
+  const labelEvery   = Math.max(1, Math.ceil(36 / approxHourPx));
+  ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+  for (const h of nightHrs) {
+    const x  = xT(h.time);
+    const hr = h.localHour;
+    if (x < PAD_L + 4 || x > PAD_L + gW - 4) continue;
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, PAD_T); ctx.lineTo(x, PAD_T + gH); ctx.stroke();
+    if (hr % labelEvery !== 0) continue;
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(String(hr).padStart(2, '0') + ':00', x, H - PAD_B + 12);
+  }
+
+  // Filled area
+  ctx.beginPath();
+  let first = true;
+  for (const h of nightHrs) {
+    const x = xT(h.time), y = yV(h.tcdc ?? 0);
+    if (first) { ctx.moveTo(x, PAD_T + gH); ctx.lineTo(x, y); first = false; } else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(xT(nightHrs[nightHrs.length - 1].time), PAD_T + gH); ctx.closePath();
+  const grad = ctx.createLinearGradient(0, PAD_T, 0, PAD_T + gH);
+  grad.addColorStop(0, 'rgba(120,150,220,0.55)'); grad.addColorStop(1, 'rgba(80,100,180,0.1)');
+  ctx.fillStyle = grad; ctx.fill();
+
+  // Line
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(140,170,230,0.9)'; ctx.lineWidth = 2;
+  ctx.lineJoin = 'round'; ctx.setLineDash([]);
+  first = true;
+  for (const h of nightHrs) {
+    const x = xT(h.time), y = yV(h.tcdc ?? 0);
+    if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // NOW line
+  const now2 = new Date();
+  if (now2 >= tStart && now2 <= tEnd) {
+    const x = xT(now2);
+    ctx.save(); ctx.shadowColor = 'rgba(255,255,255,0.6)'; ctx.shadowBlur = 6;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(x, PAD_T); ctx.lineTo(x, PAD_T + gH); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = x > PAD_L + gW * 0.85 ? 'right' : 'center';
+    ctx.fillText('NOW', x, PAD_T - 2);
+  }
+
+  ctx.strokeStyle = 'rgba(201,168,76,0.15)'; ctx.lineWidth = 1; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.roundRect(PAD_L, PAD_T, gW, gH, 6); ctx.stroke();
+}
+
+function drawTempDewChart(canvasId, hours48) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || hours48.length < 2) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.offsetWidth;
+  const H   = Math.round(W * 0.38);
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const PAD_L=42, PAD_R=12, PAD_T=16, PAD_B=32;
+  const gW = W - PAD_L - PAD_R, gH = H - PAD_T - PAD_B;
+
+  ctx.fillStyle = '#0d1220'; ctx.fillRect(0, 0, W, H);
+  const bg = ctx.createLinearGradient(PAD_L, PAD_T, PAD_L, PAD_T + gH);
+  bg.addColorStop(0, 'rgba(40,50,80,0.35)'); bg.addColorStop(1, 'rgba(10,15,30,0.15)');
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.roundRect(PAD_L, PAD_T, gW, gH, 6); ctx.fill();
+
+  const temps   = hours48.map(h => h.tmp).filter(v => v !== null && v !== undefined);
+  const dews    = hours48.map(h => h.dewp).filter(v => v !== null && v !== undefined);
+  const allVals = [...temps, ...dews];
+  if (!allVals.length) return;
+
+  const minV  = Math.floor(Math.min(...allVals) / 5) * 5 - 2;
+  const maxV  = Math.ceil(Math.max(...allVals) / 5) * 5 + 2;
+  const range = maxV - minV || 1;
+
+  const tStart = hours48[0].time, tEnd = hours48[hours48.length - 1].time;
+  const tRange = (tEnd - tStart) || 1;
+  function xT(t) { return PAD_L + ((t - tStart) / tRange) * gW; }
+  function yV(v) { return PAD_T + gH - ((v - minV) / range) * gH; }
+
+  // Temp gridlines
+  const step = range <= 20 ? 2 : range <= 40 ? 5 : 10;
+  for (let v = Math.ceil(minV / step) * step; v <= maxV; v += step) {
+    ctx.strokeStyle = v === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = v === 0 ? 1 : 0.5; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(PAD_L, yV(v)); ctx.lineTo(PAD_L + gW, yV(v)); ctx.stroke();
+    ctx.fillStyle = v === 0 ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.25)';
+    ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(v + '°', PAD_L - 4, yV(v) + 3);
+  }
+
+  // Dew/temp spread shading
+  const hasDew = hours48.some(h => h.dewp !== null && h.dewp !== undefined);
+  if (hasDew) {
+    ctx.beginPath();
+    for (let i = 0; i < hours48.length; i++) {
+      const h = hours48[i];
+      if (h.tmp === null || h.dewp === null) continue;
+      const x = xT(h.time);
+      if (i === 0) ctx.moveTo(x, yV(h.tmp)); else ctx.lineTo(x, yV(h.tmp));
+    }
+    for (let i = hours48.length - 1; i >= 0; i--) {
+      const h = hours48[i];
+      if (h.tmp === null || h.dewp === null) continue;
+      ctx.lineTo(xT(h.time), yV(h.dewp));
+    }
+    ctx.closePath(); ctx.fillStyle = 'rgba(160,180,220,0.15)'; ctx.fill();
+  }
+
+  // Night shading bands
+  const mn = new Date(tStart); mn.setHours(0, 0, 0, 0);
+  for (let d = 0; d <= 3; d++) {
+    const nightS = new Date(mn.getTime() + (d * 86400000) + 18 * 3600000);
+    const nightE = new Date(mn.getTime() + (d * 86400000) + 30 * 3600000);
+    if (nightE < tStart || nightS > tEnd) continue;
+    ctx.fillStyle = 'rgba(0,0,40,0.18)';
+    ctx.fillRect(xT(Math.max(nightS, tStart)), PAD_T, xT(Math.min(nightE, tEnd)) - xT(Math.max(nightS, tStart)), gH);
+  }
+
+  // X-axis labels
+  const sixHourPx    = (6 / 48) * gW;
+  const tmpLabelInterval = sixHourPx < 40 ? 12 : 6;
+  ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+  for (const h of hours48) {
+    const x  = xT(h.time);
+    const hr = h.localHour;
+    if (x < PAD_L + 4 || x > PAD_L + gW - 4) continue;
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, PAD_T); ctx.lineTo(x, PAD_T + gH); ctx.stroke();
+    if (hr !== 0 && hr % tmpLabelInterval !== 0) continue;
+    const label = hr === 0
+      ? new Date(h.localDate + 'T12:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' })
+      : String(hr).padStart(2, '0') + ':00';
+    ctx.fillStyle = hr === 0 ? 'rgba(201,168,76,0.8)' : 'rgba(255,255,255,0.4)';
+    ctx.fillText(label, x, H - PAD_B + 12);
+    ctx.strokeStyle = hr === 0 ? 'rgba(201,168,76,0.2)' : 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, PAD_T); ctx.lineTo(x, PAD_T + gH); ctx.stroke();
+  }
+
+  // Temperature line
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(224,128,96,0.95)'; ctx.lineWidth = 2;
+  ctx.lineJoin = 'round'; ctx.setLineDash([]);
+  let first = true;
+  for (const h of hours48) {
+    if (h.tmp === null || h.tmp === undefined) { first = true; continue; }
+    const x = xT(h.time), y = yV(h.tmp);
+    if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Dew point line (dashed)
+  if (hasDew) {
+    ctx.beginPath(); ctx.strokeStyle = 'rgba(96,176,216,0.85)'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]); ctx.lineJoin = 'round';
+    first = true;
+    for (const h of hours48) {
+      if (h.dewp === null || h.dewp === undefined) { first = true; continue; }
+      const x = xT(h.time), y = yV(h.dewp);
+      if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // NOW line
+  const now3 = new Date();
+  if (now3 >= tStart && now3 <= tEnd) {
+    const x = xT(now3);
+    ctx.save(); ctx.shadowColor = 'rgba(255,255,255,0.5)'; ctx.shadowBlur = 5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(x, PAD_T); ctx.lineTo(x, PAD_T + gH); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = x > PAD_L + gW * 0.85 ? 'right' : 'center';
+    ctx.fillText('NOW', x, PAD_T - 2);
+  }
+
+  ctx.strokeStyle = 'rgba(201,168,76,0.15)'; ctx.lineWidth = 1; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.roundRect(PAD_L, PAD_T, gW, gH, 6); ctx.stroke();
+}
+
+
+// ── Forecast rendering helpers ──────────────────────────────────────────
+
+/** Returns the median value of a numeric field across an array of hour objects. */
+function forecastMedian(arr, key) {
+  const vals = arr.map(h => h[key]).filter(v => v !== null && v !== undefined);
+  if (!vals.length) return null;
+  const s = [...vals].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
+}
+
+/** Builds the "Current Conditions" card HTML. */
+function buildCurrentConditionsHTML(currentHr) {
+  const fmtTmp = v => v !== null && v !== undefined ? Math.round(v) + '°C' : '—';
+  const fmtCld = v => v !== null && v !== undefined ? Math.round(v) + '%'  : '—';
+  const fmtWnd = v => v !== null && v !== undefined ? (parseFloat(v) / 3.6).toFixed(1) + ' m/s' : '—';
+
+  const cldNow  = currentHr.tcdc ?? null;
+  const cldDesc = cldNow === null ? '—'
+    : cldNow <= 10 ? 'Clear'
+    : cldNow <= 30 ? 'Mostly Clear'
+    : cldNow <= 55 ? 'Partly Cloudy'
+    : cldNow <= 80 ? 'Mostly Cloudy'
+    : 'Overcast';
+  const cldCls = cldNow === null ? '' : cldNow <= 30 ? 'good' : cldNow <= 55 ? 'warn' : 'poor';
+  const spread  = currentHr.tmp !== null && currentHr.dewp !== null
+    ? Math.round(currentHr.tmp - currentHr.dewp) + '°C' : '—';
+  const nowLabel = currentHr.time.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false });
+
+  return `
+    <div class="fc-chart-card fc-current-card">
+      <div class="fc-chart-header">
+        <span>📍</span>
+        <h3>Current Conditions</h3>
+        <span class="fc-header-timestamp">as of ${nowLabel}</span>
+      </div>
+      <div class="fc-current-grid">
+        <div class="fc-stat-box">
+          <div class="fc-stat-label">Temp</div>
+          <div class="fc-stat-value">${fmtTmp(currentHr.tmp)}</div>
+          <div class="fc-stat-sub">2 m above ground</div>
+        </div>
+        <div class="fc-stat-box">
+          <div class="fc-stat-label">Dew Point</div>
+          <div class="fc-stat-value">${fmtTmp(currentHr.dewp)}</div>
+          <div class="fc-stat-sub">spread: ${spread}</div>
+        </div>
+        <div class="fc-stat-box">
+          <div class="fc-stat-label">Cloud</div>
+          <div class="fc-stat-value">${fmtCld(currentHr.tcdc)}</div>
+          <div class="fc-stat-sub fc-cond-rating ${cldCls} fc-stat-sub-badge">${cldDesc}</div>
+        </div>
+        <div class="fc-stat-box fc-stat-box-last">
+          <div class="fc-stat-label">Wind</div>
+          <div class="fc-stat-value">${fmtWnd(currentHr.wspd)}</div>
+          <div class="fc-stat-sub">10 m surface wind</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/** Builds the "Tonight's Outlook" card HTML. */
+function buildOutlookHTML(outlook, medians, tzLabel) {
+  const fmt1 = v => v !== null ? Math.round(v) + '%'  : '—';
+  const fmtT = v => v !== null ? Math.round(v) + '°C' : '—';
+  const fmtW = v => v !== null ? (parseFloat(v) / 3.6).toFixed(1) + ' m/s' : '—';
+
+  return `
+    <div class="fc-outlook-card">
+      <div class="fc-outlook-row">
+        <div class="fc-outlook-icon">${outlook.icon}</div>
+        <div class="fc-outlook-text">
+          <div class="fc-outlook-label">Tonight's Outlook · 18:00–06:00 ${tzLabel}</div>
+          <div class="fc-outlook-value ${outlook.cls}">${outlook.label}</div>
+          <div class="fc-outlook-sub">${outlook.sub}</div>
+        </div>
+      </div>
+      <div class="fc-stats-grid">
+        <div class="fc-stat-box"><div class="fc-stat-label">Cloud</div><div class="fc-stat-value">${fmt1(medians.tcdc)}</div><div class="fc-stat-sub">median tonight</div></div>
+        <div class="fc-stat-box"><div class="fc-stat-label">Temp</div><div class="fc-stat-value">${fmtT(medians.tmp)}</div><div class="fc-stat-sub">2 m above ground</div></div>
+        <div class="fc-stat-box"><div class="fc-stat-label">Humidity</div><div class="fc-stat-value">${fmt1(medians.rh)}</div><div class="fc-stat-sub">relative humidity</div></div>
+        <div class="fc-stat-box"><div class="fc-stat-label">Wind</div><div class="fc-stat-value">${fmtW(medians.wspd)}</div><div class="fc-stat-sub">10 m surface wind</div></div>
+      </div>
+    </div>`;
+}
+
+/** Builds the "Astronomy Conditions" (seeing / dew / precip) card HTML. */
+function buildAstroConditionsHTML(seeing, dew, precipMed) {
+  const precipCls = (precipMed ?? 0) < 20 ? 'good' : (precipMed ?? 0) < 50 ? 'warn' : 'poor';
+  const precipLbl = (precipMed ?? 0) < 20 ? 'Low'  : (precipMed ?? 0) < 50 ? 'Moderate' : 'High';
+
+  return `
+    <div class="fc-layers-card">
+      <div class="section-header"><span>✨</span><h2>Astronomy Conditions</h2></div>
+      <div class="fc-cond-grid">
+        <div class="fc-cond-box">
+          <div class="fc-cond-icon">🌬</div>
+          <div class="fc-cond-label">Seeing</div>
+          <div class="fc-cond-value">${seeing.text}</div>
+          <div class="fc-cond-rating ${seeing.cls}">${seeing.label}</div>
+        </div>
+        <div class="fc-cond-box">
+          <div class="fc-cond-icon">💧</div>
+          <div class="fc-cond-label">Dew Risk</div>
+          <div class="fc-cond-value">${dew.text}</div>
+          <div class="fc-cond-rating ${dew.cls}">${dew.label}</div>
+        </div>
+        <div class="fc-cond-box">
+          <div class="fc-cond-icon">☔</div>
+          <div class="fc-cond-label">Precip. Chance</div>
+          <div class="fc-cond-value">${precipMed !== null ? Math.round(precipMed) + '%' : '—'} chance</div>
+          <div class="fc-cond-rating ${precipCls}">${precipLbl}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/** Builds the "Temperature & Dew Point — 48 Hours" chart card HTML. */
+function buildTempDewCardHTML() {
+  return `
+    <div class="fc-chart-card">
+      <div class="fc-chart-header"><span>🌡</span><h3>Temperature &amp; Dew Point — 48 Hours</h3></div>
+      <div class="fc-chart-body">
+        <div class="fc-canvas-wrap"><canvas id="tempDewCanvas" class="fc-canvas"></canvas></div>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <div class="chart-legend-swatch-line fc-legend-temp"></div>
+            <span class="fc-legend-temp-label">Temperature</span>
+          </div>
+          <div class="chart-legend-item">
+            <div class="chart-legend-swatch-line fc-legend-dew"></div>
+            <span class="fc-legend-dew-label">Dew Point</span>
+          </div>
+          <div class="chart-legend-item">
+            <div class="chart-legend-swatch-box fc-legend-spread"></div>
+            <span>Spread (dew risk)</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/** Builds the "Tomorrow Night" chart card HTML. */
+function buildTomorrowCardHTML(tmrwOutlook, tmrwHrs) {
+  const tmrwDate   = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { weekday:'long', month:'short', day:'numeric' });
+  const badgeCls   = (tmrwOutlook.cls === 'clear' || tmrwOutlook.cls === 'mostly-clear') ? 'good'
+                   : tmrwOutlook.cls === 'cloudy' ? 'poor' : 'warn';
+  const chartOrMsg = tmrwHrs.length >= 2
+    ? `<div class="fc-canvas-wrap"><canvas id="cloudCanvasTmrw" class="fc-canvas"></canvas></div>
+       <p class="fc-chart-sub">${tmrwOutlook.sub}</p>`
+    : `<p class="no-targets fc-no-data">Forecast data unavailable for tomorrow night.</p>`;
+
+  return `
+    <div class="fc-chart-card">
+      <div class="fc-chart-header">
+        <span>🔮</span>
+        <h3>Tomorrow Night · ${tmrwDate}</h3>
+        <span class="fc-tmrw-badge ${badgeCls}">${tmrwOutlook.label}</span>
+      </div>
+      <div class="fc-chart-body">${chartOrMsg}</div>
+    </div>`;
+}
+
+
+// ── renderForecast ──────────────────────────────────────────────────────
+
+function renderForecast() {
+  const container = document.getElementById('fcContent');
+
+  if (State.obsLat === null || State.obsLon === null) {
+    container.innerHTML = locationErrorHTML('forecast', 'Enable location access then tap Retry.');
+    return;
+  }
+
+  container.innerHTML = `<div class="fc-loading"><div class="fc-spinner"></div>Fetching forecast for your location…</div>`;
+
+  fetchForecast(State.obsLat, State.obsLon)
+    .then(data => {
+      const allHours  = parseForecast(data);
+      const modelName = data.model || 'gem_seamless';
+      const nightHrs  = getForecastNightHours(allHours);
+      const tmrwHrs   = getTomorrowNightHours(allHours);
+
+      // Share cloud data with planet altitude chart overlay
+      State.cloudNightHours = nightHrs;
+      if (State.altDatasets) {
+        requestAnimationFrame(() => {
+          drawAltitudeGraph(State.altDatasets, State.altSteps, State.altHStart, State.altHEnd);
+          const leg = document.getElementById('cloudLegendItem');
+          if (leg) leg.style.display = 'flex';
+        });
+      }
+
+      // Compute medians for tonight's window
+      const medians = {
+        tcdc: forecastMedian(nightHrs, 'tcdc'),
+        tmp:  forecastMedian(nightHrs, 'tmp'),
+        rh:   forecastMedian(nightHrs, 'rh'),
+        wspd: forecastMedian(nightHrs, 'wspd'),
+      };
+      const precipMed = forecastMedian(nightHrs, 'precip_prob');
+
+      const outlook     = getOutlook(nightHrs);
+      const tmrwOutlook = getOutlook(tmrwHrs);
+      const seeing      = getSeeingRating(medians.wspd);
+      const dew         = getDewRisk(medians.rh);
+
+      // Current hour — data point closest to right now
+      const nowMs     = Date.now();
+      const currentHr = allHours.reduce((best, h) =>
+        Math.abs(h.time - nowMs) < Math.abs(best.time - nowMs) ? h : best
+      , allHours[0]);
+
+      const tzLabel = new Date().toLocaleDateString('en-CA', { timeZoneName:'short' }).split(', ')[1] || 'local';
+      const locStr  = `${Math.abs(State.obsLat).toFixed(2)}°${State.obsLat >= 0 ? 'N' : 'S'}, `
+                    + `${Math.abs(State.obsLon).toFixed(2)}°${State.obsLon >= 0 ? 'E' : 'W'}`;
+
+      // Assemble page from helper-built cards
+      container.innerHTML =
+        buildCurrentConditionsHTML(currentHr)      +
+        buildOutlookHTML(outlook, medians, tzLabel) +
+        `<div class="fc-chart-card">
+          <div class="fc-chart-header"><span>☁️</span><h3>Hourly Cloud Cover — Tonight</h3></div>
+          <div class="fc-chart-body"><div class="fc-canvas-wrap"><canvas id="cloudCanvas" class="fc-canvas"></canvas></div></div>
+        </div>`                                    +
+        buildAstroConditionsHTML(seeing, dew, precipMed) +
+        buildTempDewCardHTML()                     +
+        buildTomorrowCardHTML(tmrwOutlook, tmrwHrs)+
+        `<p class="fc-footer">Location: ${locStr} · Model: ${modelName} via Open-Meteo</p>`;
+
+      // 48-hr window for temp/dew chart
+      const now48   = new Date();
+      const hours48 = allHours.filter(h => h.time >= now48 && h.time <= new Date(now48.getTime() + 48 * 3600000));
+
+      State.fcNightHrs = nightHrs;
+      State.fcTmrwHrs  = tmrwHrs.length >= 2 ? tmrwHrs : null;
+      State.fcHours48  = hours48.length >= 2 ? hours48 : null;
+
+      requestAnimationFrame(() => {
+        drawCloudChart('cloudCanvas', nightHrs);
+        if (tmrwHrs.length >= 2) drawCloudChart('cloudCanvasTmrw', tmrwHrs);
+        if (hours48.length >= 2) drawTempDewChart('tempDewCanvas', hours48);
+      });
+    })
+    .catch(err => {
+      console.error('Forecast fetch error:', err);
+      container.innerHTML = `
+        <div class="fc-error">
+          <strong>Could not load forecast</strong><br>${err.message}<br><br>
+          <span class="fc-error-detail">Check your internet connection and try again.</span>
+        </div>`;
+    });
+}

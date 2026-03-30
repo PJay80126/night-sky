@@ -1,9 +1,15 @@
-const CACHE = 'night-sky-v19';
+const CACHE = 'night-sky-v20';
 const ASSETS = [
   '.',
   'index.html',
   'styles.css',
-  'app.js',
+  'js/state.js',
+  'js/moon.js',
+  'js/planets.js',
+  'js/events.js',
+  'js/messier.js',
+  'js/forecast.js',
+  'js/main.js',
   'astronomy.browser.js',
   'manifest.json',
   'icons/icon-192.png',
