@@ -64,7 +64,8 @@ body::before {
 .tab-btn {
   flex: 1; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 4px;
-  padding: 10px 0 8px;
+  padding: 12px 0 10px;
+  min-height: 48px;
   background: none; border: none; cursor: pointer;
   color: var(--text-dim); transition: color 0.2s;
   -webkit-tap-highlight-color: transparent;
@@ -72,7 +73,7 @@ body::before {
 .tab-btn.active { color: var(--gold-light); }
 .tab-btn .tab-icon { font-size: 1.4rem; line-height: 1; }
 .tab-btn .tab-label {
-  font-family: 'Cinzel', serif; font-size: 0.6rem;
+  font-family: 'Cinzel', serif; font-size: 0.68rem;
   letter-spacing: 0.12em; text-transform: uppercase;
 }
 .tab-indicator {
@@ -113,7 +114,7 @@ h1 {
 
 /* ── Q-Day display ───────────────────────────────────────────────────────── */
 .qday-display { text-align: center; padding: 20px 0; }
-.qday-label { font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.2em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; }
+.qday-label { font-family: 'Cinzel', serif; font-size: 0.78rem; letter-spacing: 0.2em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; }
 .qday-number {
   font-family: 'Cinzel', serif; font-size: 4.5rem; font-weight: 700; line-height: 1;
   background: linear-gradient(135deg, var(--gold-light), var(--gold));
@@ -135,12 +136,12 @@ h1 {
 /* ── Divider & info rows ─────────────────────────────────────────────────── */
 .divider { border: none; border-top: 1px solid rgba(201,168,76,0.12); margin: 22px 0; }
 .info-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-.info-label { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.15em; color: var(--text-dim); text-transform: uppercase; }
+.info-label { font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.15em; color: var(--text-dim); text-transform: uppercase; }
 .info-value { font-size: 1rem; color: var(--gold-light); }
 
 /* ── Timeline ────────────────────────────────────────────────────────────── */
 .timeline-card { background: var(--surface); border: 1px solid rgba(201,168,76,0.15); border-radius: 16px; padding: 22px 24px; margin-bottom: 20px; }
-.timeline-title { font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.15em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 16px; }
+.timeline-title { font-family: 'Cinzel', serif; font-size: 0.78rem; letter-spacing: 0.15em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 16px; }
 .timeline-bar { position: relative; height: 6px; background: rgba(255,255,255,0.07); border-radius: 3px; margin: 24px 0 10px; }
 .timeline-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, rgba(201,168,76,0.3), var(--gold)); transition: width 0.5s ease; }
 .timeline-cursor { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 14px; height: 14px; background: var(--gold-light); border-radius: 50%; box-shadow: 0 0 10px rgba(201,168,76,0.8); transition: left 0.5s ease; }
@@ -158,7 +159,7 @@ h1 {
 /* ── Target items ────────────────────────────────────────────────────────── */
 .target-group { margin-bottom: 18px; }
 .target-group:last-child { margin-bottom: 0; }
-.target-group-label { font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.2em; color: var(--gold-dim); text-transform: uppercase; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(201,168,76,0.1); }
+.target-group-label { font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.2em; color: var(--gold-dim); text-transform: uppercase; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(201,168,76,0.1); }
 
 .target-item {
   display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
@@ -177,7 +178,7 @@ h1 {
 .target-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
 .target-pos { font-size: 0.75rem; color: var(--text-dim); padding: 2px 8px; background: var(--crater); border-radius: 4px; font-family: 'Cinzel', serif; letter-spacing: 0.05em; }
 .target-photo-btn {
-  font-size: 0.72rem; color: var(--gold); padding: 2px 8px;
+  font-size: 0.72rem; color: var(--gold); padding: 6px 12px;
   background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.3);
   border-radius: 4px; cursor: pointer; font-family: 'Cinzel', serif;
   letter-spacing: 0.05em; white-space: nowrap; transition: all 0.2s;
@@ -201,7 +202,7 @@ h1 {
 .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.93); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
 .lightbox.open { display: flex; }
 .lightbox img { max-width: 100%; max-height: 90vh; border-radius: 8px; border: 1px solid rgba(201,168,76,0.3); cursor: zoom-out; }
-.lightbox-close { position: fixed; top: 16px; right: 20px; font-size: 2rem; color: var(--gold-light); cursor: pointer; font-family: 'Cinzel', serif; line-height: 1; }
+.lightbox-close { position: fixed; top: 16px; right: 20px; font-size: 2rem; color: var(--gold-light); cursor: pointer; font-family: 'Cinzel', serif; line-height: 1; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
 
 /* ── Planets tab ─────────────────────────────────────────────────────────── */
 .planet-row {
@@ -217,7 +218,7 @@ h1 {
 .planet-times { font-size: 0.78rem; color: var(--text-dim); flex: 1; line-height: 1.5; min-width: 0; overflow: hidden; }
 .planet-times span { display: inline-block; margin-right: 6px; white-space: nowrap; }
 .planet-badge {
-  font-size: 0.65rem; font-family: 'Cinzel', serif; letter-spacing: 0.08em;
+  font-size: 0.7rem; font-family: 'Cinzel', serif; letter-spacing: 0.08em;
   padding: 2px 7px; border-radius: 4px; flex-shrink: 0; text-transform: uppercase;
   text-align: center; margin-left: auto;
 }
@@ -247,8 +248,8 @@ h1 {
   margin-bottom: 20px; padding: 0 2px;
 }
 .filter-chip {
-  font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.12em;
-  text-transform: uppercase; padding: 6px 14px; border-radius: 20px;
+  font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.12em;
+  text-transform: uppercase; padding: 10px 16px; border-radius: 20px;
   border: 1px solid rgba(201,168,76,0.25); background: rgba(201,168,76,0.06);
   color: var(--text-dim); cursor: pointer; transition: all 0.2s;
   -webkit-tap-highlight-color: transparent;
@@ -305,7 +306,7 @@ h1 {
 .event-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.45; font-style: italic; }
 .event-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
 .event-date { font-size: 0.75rem; color: var(--text-dim); font-family: 'Cinzel', serif; letter-spacing: 0.06em; }
-.event-badge { font-family: 'Cinzel', serif; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; }
+.event-badge { font-family: 'Cinzel', serif; font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; }
 .badge-tonight { background: rgba(76,175,122,0.15); color: #4caf7a; border: 1px solid rgba(76,175,122,0.3); }
 .badge-soon    { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
 .event-countdown {
@@ -352,7 +353,7 @@ h1 {
 .fc-stats-grid { display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid rgba(201,168,76,0.1); }
 .fc-stat-box { padding: 12px 14px; border-right: 1px solid rgba(201,168,76,0.08); }
 .fc-stat-box:last-child { border-right: none; }
-.fc-stat-label { font-size: 0.65rem; font-family: 'Cinzel', serif; letter-spacing: 0.1em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
+.fc-stat-label { font-size: 0.72rem; font-family: 'Cinzel', serif; letter-spacing: 0.1em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
 .fc-stat-value { font-size: 1rem; color: var(--gold-light); font-family: 'Cinzel', serif; }
 .fc-stat-sub { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; font-style: italic; }
 .fc-chart-card { background: var(--surface); border: 1px solid rgba(201,168,76,0.15); border-radius: 14px; overflow: hidden; margin-bottom: 14px; }
@@ -370,11 +371,11 @@ h1 {
 }
 .fc-cond-icon { font-size: 1.4rem; margin-bottom: 6px; }
 .fc-cond-label {
-  font-size: 0.62rem; font-family: 'Cinzel', serif; letter-spacing: 0.06em;
+  font-size: 0.68rem; font-family: 'Cinzel', serif; letter-spacing: 0.06em;
   color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px;
 }
 .fc-cond-value {
-  font-size: 0.72rem; color: var(--text-dim); font-style: italic;
+  font-size: 0.78rem; color: var(--text-dim); font-style: italic;
   margin-bottom: 6px; line-height: 1.3;
 }
 .fc-cond-rating {
@@ -393,7 +394,7 @@ h1 {
 .loc-error-detail { font-size: 0.82rem; color: var(--text-dim); font-style: italic; }
 .loc-retry-btn {
   font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.12em;
-  text-transform: uppercase; padding: 9px 22px; border-radius: 20px;
+  text-transform: uppercase; padding: 12px 24px; border-radius: 20px;
   border: 1px solid rgba(201,168,76,0.5); background: rgba(201,168,76,0.1);
   color: var(--gold-light); cursor: pointer; transition: all 0.2s;
   -webkit-tap-highlight-color: transparent; margin-top: 4px;
@@ -506,6 +507,22 @@ h1 {
 .fc-current-card { margin-bottom: 14px; }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .container { padding: 24px 16px 80px; }
+  .card { padding: 22px; }
+  .section-body { padding: 16px 18px; }
+  .section-header { padding: 14px 18px; }
+  .fc-cond-grid { grid-template-columns: repeat(2, 1fr); }
+  .fc-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .fc-current-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 374px) {
+  .tab-btn .tab-label { display: none; }
+  .tab-btn .tab-icon { font-size: 1.5rem; }
+  .tab-btn { padding: 14px 0 12px; }
+}
+
 @media (max-width: 480px) {
   h1 { font-size: 1.4rem; }
   .qday-number { font-size: 3.5rem; }
@@ -533,6 +550,12 @@ h1 {
   .fc-cond-label { font-size: 0.58rem; letter-spacing: 0.04em; }
   .fc-cond-value { font-size: 0.68rem; }
   .fc-cond-rating { font-size: 0.6rem; letter-spacing: 0.04em; padding: 2px 5px; white-space: nowrap; }
+
+  .container { padding: 16px 12px 80px; }
+  .timeline-card { padding: 16px; }
+  .fc-chart-body { padding: 12px 14px; }
+  .fc-outlook-row { padding: 14px 16px 10px; gap: 12px; }
+  .event-card { padding: 12px 14px; gap: 10px; }
 }
 
 /* ── Messier tab ─────────────────────────────────────────────────────────── */
