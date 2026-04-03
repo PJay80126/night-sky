@@ -1,10 +1,11 @@
-const CACHE = 'night-sky-v21';
+const CACHE = 'night-sky-v31';
 const ASSETS = [
   '.',
   'index.html',
   'styles.css',
   'js/state.js',
   'js/moon.js',
+  'js/moonmap.js',
   'js/planets.js',
   'js/events.js',
   'js/messier.js',
@@ -49,6 +50,7 @@ const ASSETS = [
   'photos/Taruntius_and_Langrenus.png',
   'photos/Taurus_Mountains_and_Posidonius.png',
   'photos/Tycho_Maginus_Clavius_Longomontanus_and_Wilhelm.png',
+  'photos/WAC_GLOBAL_O000N0000_032P.jpg',
 ];
 
 // Install: cache all assets

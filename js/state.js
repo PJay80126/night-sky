@@ -27,6 +27,7 @@ const State = {
   // Tab load guards
   planetsLoaded:  false,
   forecastLoaded: false,
+  moonmapLoaded:  false,
 };
 
 

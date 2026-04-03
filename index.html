@@ -52,95 +52,127 @@
   <!-- ── Moon tab ─────────────────────────────────────────────────────── -->
   <div class="tab-panel active" id="panel-moon">
 
-    <div class="moon-header">
-      <svg class="moon-svg" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <radialGradient id="moonGrad" cx="40%" cy="35%" r="65%">
-            <stop offset="0%"   stop-color="#e8dfc0"/>
-            <stop offset="60%"  stop-color="#c8b870"/>
-            <stop offset="100%" stop-color="#6b5a20"/>
-          </radialGradient>
-          <radialGradient id="c1" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stop-color="rgba(0,0,0,0.25)"/>
-            <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
-          </radialGradient>
-        </defs>
-        <circle cx="55" cy="55" r="52" fill="rgba(201,168,76,0.08)"/>
-        <circle cx="55" cy="55" r="44" fill="url(#moonGrad)"/>
-        <ellipse cx="42" cy="42" rx="7" ry="6" fill="url(#c1)" opacity="0.7"/>
-        <ellipse cx="68" cy="38" rx="4" ry="4" fill="url(#c1)" opacity="0.5"/>
-        <ellipse cx="35" cy="65" rx="5" ry="4" fill="url(#c1)" opacity="0.6"/>
-        <ellipse cx="70" cy="68" rx="8" ry="6" fill="url(#c1)" opacity="0.5"/>
-        <ellipse cx="55" cy="58" rx="6" ry="5" fill="url(#c1)" opacity="0.4"/>
-        <clipPath id="moonClip"><circle cx="55" cy="55" r="44"/></clipPath>
-        <rect id="shadowRect" x="0" y="0" width="0" height="110" fill="rgba(6,9,15,0.75)" clip-path="url(#moonClip)"/>
-      </svg>
-      <h1>Explore the Moon</h1>
-      <p class="subtitle">Q-Day Calculator &amp; Target Finder</p>
+    <!-- Sub-tab switcher -->
+    <div id="moonSubTabs">
+      <button id="moonSubTab-features" class="active" onclick="switchMoonSubTab('features')">FEATURES</button>
+      <button id="moonSubTab-map"                     onclick="switchMoonSubTab('map')">MAP</button>
     </div>
 
-    <!-- Q-Day card -->
-    <div class="card">
-      <div class="qday-display">
-        <div class="qday-label">Today's Q-Day</div>
-        <div class="qday-number" id="qdayNum">—</div>
-        <div class="qday-ref"    id="qdayRef">calculating…</div>
-      </div>
-      <div class="status-bar">
-        <div class="status-dot" id="statusDot"></div>
-        <div class="status-text" id="statusText"></div>
-      </div>
-      <hr class="divider">
-      <div class="info-row">
-        <span class="info-label">Today</span>
-        <span class="info-value" id="todayDate"></span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Nearest First Quarter</span>
-        <span class="info-value" id="nearestFQ"></span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Next First Quarter</span>
-        <span class="info-value" id="nextFQ"></span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Current Phase</span>
-        <span class="info-value" id="currentPhase"></span>
-      </div>
-    </div>
+    <!-- Features sub-view (existing content) -->
+    <div id="moonFeaturesView">
 
-    <!-- Lunar cycle timeline -->
-    <div class="timeline-card">
-      <div class="timeline-title">🌙 Lunar Cycle — Observing Window</div>
-      <div class="timeline-bar" style="margin: 28px 0 14px;">
-        <!-- Phase icons -->
-        <div class="timeline-phase-icon" style="left:0%">🌕</div>
-        <div class="timeline-phase-icon" style="left:25%">🌗</div>
-        <div class="timeline-phase-icon" style="left:50%">🌑</div>
-        <div class="timeline-phase-icon" style="left:75%">🌓</div>
-        <div class="timeline-phase-icon" style="left:100%">🌕</div>
-        <!-- Tick lines -->
-        <div class="timeline-tick" style="left:0%"></div>
-        <div class="timeline-tick" style="left:25%"></div>
-        <div class="timeline-tick" style="left:50%"></div>
-        <div class="timeline-tick" style="left:75%"></div>
-        <div class="timeline-tick" style="left:100%"></div>
-        <div class="timeline-fill"   id="timelineFill"   style="width:0%"></div>
-        <div class="timeline-cursor" id="timelineCursor" style="left:0%"></div>
+      <div class="moon-header">
+        <svg class="moon-svg" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="moonGrad" cx="40%" cy="35%" r="65%">
+              <stop offset="0%"   stop-color="#e8dfc0"/>
+              <stop offset="60%"  stop-color="#c8b870"/>
+              <stop offset="100%" stop-color="#6b5a20"/>
+            </radialGradient>
+            <radialGradient id="c1" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="rgba(0,0,0,0.25)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+            </radialGradient>
+          </defs>
+          <circle cx="55" cy="55" r="52" fill="rgba(201,168,76,0.08)"/>
+          <circle cx="55" cy="55" r="44" fill="url(#moonGrad)"/>
+          <ellipse cx="42" cy="42" rx="7" ry="6" fill="url(#c1)" opacity="0.7"/>
+          <ellipse cx="68" cy="38" rx="4" ry="4" fill="url(#c1)" opacity="0.5"/>
+          <ellipse cx="35" cy="65" rx="5" ry="4" fill="url(#c1)" opacity="0.6"/>
+          <ellipse cx="70" cy="68" rx="8" ry="6" fill="url(#c1)" opacity="0.5"/>
+          <ellipse cx="55" cy="58" rx="6" ry="5" fill="url(#c1)" opacity="0.4"/>
+          <clipPath id="moonClip"><circle cx="55" cy="55" r="44"/></clipPath>
+          <rect id="shadowRect" x="0" y="0" width="0" height="110" fill="rgba(6,9,15,0.75)" clip-path="url(#moonClip)"/>
+        </svg>
+        <h1>Explore the Moon</h1>
+        <p class="subtitle">Q-Day Calculator &amp; Target Finder</p>
       </div>
-      <div class="countdown" id="countdown"></div>
-    </div>
 
-    <!-- Tonight's targets -->
-    <div class="section-card">
-      <div class="section-header">
-        <span>🔭</span>
-        <h2>Tonight's Targets</h2>
+      <!-- Q-Day card -->
+      <div class="card">
+        <div class="qday-display">
+          <div class="qday-label">Today's Q-Day</div>
+          <div class="qday-number" id="qdayNum">—</div>
+          <div class="qday-ref"    id="qdayRef">calculating…</div>
+        </div>
+        <div class="status-bar">
+          <div class="status-dot" id="statusDot"></div>
+          <div class="status-text" id="statusText"></div>
+        </div>
+        <hr class="divider">
+        <div class="info-row">
+          <span class="info-label">Today</span>
+          <span class="info-value" id="todayDate"></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Nearest First Quarter</span>
+          <span class="info-value" id="nearestFQ"></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Next First Quarter</span>
+          <span class="info-value" id="nextFQ"></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Current Phase</span>
+          <span class="info-value" id="currentPhase"></span>
+        </div>
       </div>
-      <div class="section-body" id="targetsBody">
-        <p class="no-targets">Calculating targets…</p>
+
+      <!-- Lunar cycle timeline -->
+      <div class="timeline-card">
+        <div class="timeline-title">🌙 Lunar Cycle — Observing Window</div>
+        <div class="timeline-bar" style="margin: 28px 0 14px;">
+          <!-- Phase icons -->
+          <div class="timeline-phase-icon" style="left:0%">🌕</div>
+          <div class="timeline-phase-icon" style="left:25%">🌗</div>
+          <div class="timeline-phase-icon" style="left:50%">🌑</div>
+          <div class="timeline-phase-icon" style="left:75%">🌓</div>
+          <div class="timeline-phase-icon" style="left:100%">🌕</div>
+          <!-- Tick lines -->
+          <div class="timeline-tick" style="left:0%"></div>
+          <div class="timeline-tick" style="left:25%"></div>
+          <div class="timeline-tick" style="left:50%"></div>
+          <div class="timeline-tick" style="left:75%"></div>
+          <div class="timeline-tick" style="left:100%"></div>
+          <div class="timeline-fill"   id="timelineFill"   style="width:0%"></div>
+          <div class="timeline-cursor" id="timelineCursor" style="left:0%"></div>
+        </div>
+        <div class="countdown" id="countdown"></div>
       </div>
-    </div>
+
+      <!-- Tonight's targets -->
+      <div class="section-card">
+        <div class="section-header">
+          <span>🔭</span>
+          <h2>Tonight's Targets</h2>
+        </div>
+        <div class="section-body" id="targetsBody">
+          <p class="no-targets">Calculating targets…</p>
+        </div>
+      </div>
+
+    </div><!-- /moonFeaturesView -->
+
+    <!-- Map sub-view -->
+    <div id="moonMapView" style="display:none">
+      <div id="mapContainer">
+        <canvas id="moonGlCanvas"></canvas>
+        <canvas id="moonOverlayCanvas"></canvas>
+        <div id="mapTooltip"></div>
+      </div>
+      <div id="mapToolbar">
+        <div class="map-legend">
+          <span class="legend-item"><span class="legend-dot"></span>Tonight</span>
+          <span class="legend-item"><span class="legend-dot legend-dot-dim"></span>Other</span>
+        </div>
+        <div class="map-controls">
+          <button onclick="mapZoomIn()" title="Zoom in">+</button>
+          <button onclick="mapZoomOut()" title="Zoom out">&#8722;</button>
+          <button id="mapLabelToggle" onclick="mapToggleLabels()" title="Toggle labels">&#127991;</button>
+          <button onclick="mapResetView()" title="Reset view">&#8962;</button>
+        </div>
+      </div>
+    </div><!-- /moonMapView -->
 
   </div><!-- /panel-moon -->
 
@@ -237,6 +269,7 @@
 
 <script src="js/state.js"></script>
 <script src="js/moon.js"></script>
+<script src="js/moonmap.js"></script>
 <script src="js/planets.js"></script>
 <script src="js/events.js"></script>
 <script src="js/messier.js"></script>

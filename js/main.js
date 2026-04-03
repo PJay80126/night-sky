@@ -63,6 +63,7 @@ window.addEventListener('resize', () => {
     if (State.fcNightHrs) drawCloudChart('cloudCanvas',      State.fcNightHrs);
     if (State.fcTmrwHrs)  drawCloudChart('cloudCanvasTmrw',  State.fcTmrwHrs);
     if (State.fcHours48)  drawTempDewChart('tempDewCanvas',  State.fcHours48);
+    if (State.moonmapLoaded) resizeMoonMap();
   }, 150);
 });
 
