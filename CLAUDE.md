@@ -20,7 +20,7 @@ Requires browser geolocation permission for accurate astronomy calculations.
 ```
 index.html              # Markup — 5 tabs: Moon, Planets, Events, Messier, Forecast
 styles.css              # All CSS (~36KB), dark theme, CSS custom properties
-sw.js                   # Service worker — cache-first, version tagged (e.g. night-sky-v25)
+sw.js                   # Service worker — cache-first, version tagged (e.g. night-sky-v31)
 manifest.json           # PWA manifest
 astronomy.browser.js    # Bundled Astronomy.js library (Don Cross) — do not modify
 js/
@@ -32,7 +32,7 @@ js/
   events.js             # Moon phases, oppositions, meteor showers, eclipses
   messier.js            # 110-object Messier catalogue with filter chips
   forecast.js           # Open-Meteo API, cloud/temp charts, observing conditions
-photos/                 # 24 high-res lunar region images + lroc_color_poles_4k.jpg (moon globe texture)
+photos/                 # 24 high-res lunar region images + WAC_GLOBAL_O000N0000_032P.jpg (moon globe texture)
 fonts/                  # Cinzel + Crimson Pro WOFF2 (self-hosted)
 icons/                  # PWA icons (192, 512)
 ```
@@ -43,9 +43,8 @@ icons/                  # PWA icons (192, 512)
 - **Astronomy calculations**: Always create a fresh observer — `new Astronomy.Observer(lat, lon, 0)`. Use `Astronomy.SearchRiseSet`, `Astronomy.SearchAltitude`, `Astronomy.SearchMoonPhase`, etc.
 - **Q-Day**: Days since First Quarter (RASC lunar observing standard) — implemented in `moon.js`
 - **Canvas charts**: Planet altitude and forecast charts are drawn directly on `<canvas>` — no chart library
-- **Moon Map**: WebGL 1.0 fragment shader renders the LROC equirectangular texture via inverse orthographic projection. A 2D canvas overlay draws feature dots and labels. The 0.85 BASE_SCALE factor must stay in sync across three places: shader zoom uniform, overlay `_projectFeature`, and `_clampPan`. WebGL requires HTTP (not `file://`) due to CORS restrictions on `texImage2D`.
-- **Moon Map position angle**: `_computeUniforms()` computes `posAngle = poleAngle + parallactic`. `poleAngle` is the position angle of the Moon's north pole from celestial north (treating Moon's pole ≈ ecliptic north pole, ≤1.54° error); `parallactic` is the standard parallactic angle. Both are required — omitting `poleAngle` causes a systematic rotational offset of features.
-- **Lunar terminator**: Rendered in the fragment shader using uniforms `u_sunLat`/`u_sunLon` (subsolar selenographic point). `subsolarLon = (lib.elon - phase + 180) * DEG` (the +180 is critical — at new moon the Sun is opposite Earth), `subsolarLat = -lib.mlat * 0.30 * DEG`. Night side rendered at 2% brightness with 5° `smoothstep` penumbra.
+- **Moon Map**: WebGL 1.0 fragment shader displays the WAC orthographic texture (`WAC_GLOBAL_O000N0000_032P.jpg`) directly — the image is already an orthographic projection of the near side centered at (0°N, 0°E), so no reprojection is needed. Screen coordinates map directly to texture UVs. A 2D canvas overlay draws feature dots and labels. The 0.85 BASE_SCALE factor must stay in sync across three places: shader zoom uniform, overlay `_projectFeature`, and `_clampPan`. WebGL requires HTTP (not `file://`) due to CORS restrictions on `texImage2D`.
+- **Lunar terminator**: Rendered in the fragment shader. Lat/lon are derived from screen coordinates via inverse orthographic (centered at 0,0), then sun illumination is computed using uniforms `u_sunLat`/`u_sunLon` (subsolar selenographic point). `subsolarLon = (lib.elon - phase + 180) * DEG` (the +180 is critical — at new moon the Sun is opposite Earth), `subsolarLat = -lib.mlat * 0.30 * DEG`. Night side rendered at 2% brightness with 5° `smoothstep` penumbra. No libration or position angle rotation is applied to the view.
 - **Catalogue data**: Embedded as `const` arrays/objects (PHOTO_DATA, MESSIER, METEOR_SHOWERS, etc.) — not fetched
 - **Weather**: Open-Meteo API — free, no auth, returns JSON directly
 
@@ -59,7 +58,7 @@ icons/                  # PWA icons (192, 512)
 ```
 
 ## Service Worker
-Cache version is hardcoded in `sw.js` as `CACHE = 'night-sky-v27'`. **Bump the version number whenever assets change** to force cache invalidation for existing installs. The assets list at the top of `sw.js` must include any new files added to the project.
+Cache version is hardcoded in `sw.js` as `CACHE = 'night-sky-v31'`. **Bump the version number whenever assets change** to force cache invalidation for existing installs. The assets list at the top of `sw.js` must include any new files added to the project.
 
 The fetch handler uses cache-first strategy: cached response wins; network is fallback only.
 
@@ -70,7 +69,7 @@ The app is designed to work fully offline for everything except live weather. Ke
 ### What works offline (keep it this way)
 | Tab | Why offline-safe |
 |-----|-----------------|
-| Moon | All data embedded in `moon.js`; photos pre-cached in `sw.js`; moon globe rendered via WebGL from pre-cached LROC texture |
+| Moon | All data embedded in `moon.js`; photos pre-cached in `sw.js`; moon globe rendered via WebGL from pre-cached WAC texture |
 | Planets | All calculations done locally via `astronomy.browser.js` |
 | Events | Phases, oppositions, showers all computed locally |
 | Messier | Catalogue embedded in `messier.js` |
