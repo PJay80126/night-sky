@@ -77,5 +77,25 @@ if ('serviceWorker' in navigator) {
 }
 
 
+// ── Night-vision mode ─────────────────────────────────────────────────────
+
+function _applyNightMode(on) {
+  document.body.classList.toggle('night-mode', on);
+  const btn = document.getElementById('nightModeToggle');
+  if (btn) btn.textContent = on ? '☀️' : '🌙';
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', on ? '#1a0000' : '#06090f');
+}
+
+function toggleNightMode() {
+  const on = !document.body.classList.contains('night-mode');
+  localStorage.setItem('nightsky.nightMode', on ? '1' : '0');
+  _applyNightMode(on);
+}
+
+// Apply saved preference before first paint
+_applyNightMode(localStorage.getItem('nightsky.nightMode') === '1');
+
+
 // ── Boot ──────────────────────────────────────────────────────────────────
 renderMoon();

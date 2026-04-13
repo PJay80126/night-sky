@@ -21,6 +21,9 @@
   <script src="astronomy.browser.js"></script>
 </head>
 <body>
+
+<button id="nightModeToggle" onclick="toggleNightMode()" title="Toggle red night-vision mode" aria-label="Toggle night mode">🌙</button>
+
 <div class="container">
 
   <!-- ── Tab bar ──────────────────────────────────────────────────────── -->
@@ -228,11 +231,24 @@
     </div>
 
     <div class="scope-bar">
-      <label for="scopeFL">🔭 Telescope focal length</label>
-      <input type="number" id="scopeFL" min="100" max="5000" step="10" placeholder="e.g. 1200" inputmode="numeric"
-             oninput="setScopeFL(this.value)" />
-      <span>mm</span>
-      <button class="scope-clear" onclick="setScopeFL('')" title="Clear">×</button>
+      <div class="scope-field">
+        <label for="scopeFL">🔭 Focal length</label>
+        <input type="number" id="scopeFL" min="100" max="5000" step="10" placeholder="1200" inputmode="numeric"
+               oninput="setScopeFL(this.value)" />
+        <span class="scope-unit">mm</span>
+      </div>
+      <div class="scope-field">
+        <label for="scopeAperture">📏 Aperture</label>
+        <input type="number" id="scopeAperture" min="40" max="800" step="5" placeholder="200" inputmode="numeric"
+               oninput="setScopeAperture(this.value)" />
+        <span class="scope-unit">mm</span>
+      </div>
+      <div class="scope-field">
+        <label for="bortle">🌌 Bortle</label>
+        <input type="number" id="bortle" min="1" max="9" step="1" placeholder="4" inputmode="numeric"
+               oninput="setBortle(this.value)" />
+        <span class="scope-unit">/9</span>
+      </div>
     </div>
 
     <div class="events-filter" id="messierFilter">

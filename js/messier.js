@@ -238,29 +238,61 @@ function dsoAltBadge(peakAlt) {
 let _messierLoaded  = false;
 let _messierResults = [];   // cached computed objects with peakAlt
 let _messierFilter  = 'all';
-let _scopeFL        = (() => {
-  const v = parseInt(localStorage.getItem('nightsky.scopeFL'), 10);
-  return Number.isFinite(v) && v >= 100 && v <= 5000 ? v : null;
-})();
-
-// Initialise the scope-FL input once the DOM is ready, mirroring saved value.
-function _initScopeInput() {
-  const el = document.getElementById('scopeFL');
-  if (el && _scopeFL !== null && el.value === '') el.value = _scopeFL;
+function _loadIntPref(key, min, max) {
+  const v = parseInt(localStorage.getItem(key), 10);
+  return Number.isFinite(v) && v >= min && v <= max ? v : null;
 }
 
-function setScopeFL(value) {
+let _scopeFL       = _loadIntPref('nightsky.scopeFL', 100, 5000);
+let _scopeAperture = _loadIntPref('nightsky.scopeAperture', 40, 800);
+let _bortle        = _loadIntPref('nightsky.bortle', 1, 9);
+
+function _initScopeInput() {
+  const fl = document.getElementById('scopeFL');
+  if (fl && _scopeFL !== null && fl.value === '') fl.value = _scopeFL;
+  const ap = document.getElementById('scopeAperture');
+  if (ap && _scopeAperture !== null && ap.value === '') ap.value = _scopeAperture;
+  const b  = document.getElementById('bortle');
+  if (b  && _bortle !== null && b.value === '')  b.value  = _bortle;
+}
+
+function _setIntPref(key, value, min, max, setter) {
   const v = parseInt(value, 10);
-  if (Number.isFinite(v) && v >= 100 && v <= 5000) {
-    _scopeFL = v;
-    localStorage.setItem('nightsky.scopeFL', String(v));
+  if (Number.isFinite(v) && v >= min && v <= max) {
+    setter(v);
+    localStorage.setItem(key, String(v));
   } else {
-    _scopeFL = null;
-    localStorage.removeItem('nightsky.scopeFL');
-    const el = document.getElementById('scopeFL');
-    if (el && value === '') el.value = '';
+    setter(null);
+    localStorage.removeItem(key);
   }
   if (_messierLoaded) _renderMessierResults();
+}
+
+function setScopeFL(value)       { _setIntPref('nightsky.scopeFL',       value, 100, 5000, v => _scopeFL = v); }
+function setScopeAperture(value) { _setIntPref('nightsky.scopeAperture', value, 40,  800,  v => _scopeAperture = v); }
+function setBortle(value)        { _setIntPref('nightsky.bortle',        value, 1,   9,    v => _bortle = v); }
+
+// Naked-eye limiting magnitude by Bortle class (rough table).
+const _NELM = { 1: 7.8, 2: 7.3, 3: 6.8, 4: 6.3, 5: 5.8, 6: 5.3, 7: 4.8, 8: 4.3, 9: 4.0 };
+
+// Telescope limiting magnitude = NELM + 5*log10(aperture / pupil_mm).
+// Uses 7mm dark-adapted pupil. Returns null if either input is missing.
+function _limitingMag() {
+  if (_bortle === null || _scopeAperture === null) return null;
+  const nelm = _NELM[_bortle];
+  return nelm + 5 * Math.log10(_scopeAperture / 7);
+}
+
+// Composite "ease" score for an object given current settings.
+// Higher = easier/better target tonight. Returns null if not visible.
+function _scoreObject(obj) {
+  if (obj.peakAlt < 20) return null;
+  const limit = _limitingMag();
+  if (limit !== null && obj.mag > limit - 0.5) return null; // need ≥0.5 mag margin
+  const altScore     = obj.peakAlt;                                       // 20–90
+  const windowScore  = Math.min(120, obj.winDurMs / 60000) / 4;           // 0–30
+  const magMargin    = limit !== null ? Math.max(0, limit - obj.mag) : 5; // 0–10ish
+  return altScore + windowScore + magMargin * 4;
 }
 
 // Format the magnification range as either "low–high×" (no scope) or
@@ -396,6 +428,29 @@ function _renderMessierResults() {
       <span class="messier-count-good">${visible.length} visible tonight</span>
       <span class="messier-count-dim"> · ${invisible.length} below horizon</span>
     </div>`;
+
+  // ── Tonight's Best ────────────────────────────────────────────────────
+  if (_messierFilter === 'all' && visible.length > 0) {
+    const ranked = visible
+      .map(o => ({ o, score: _scoreObject(o) }))
+      .filter(x => x.score !== null)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+    if (ranked.length) {
+      const limit = _limitingMag();
+      const ctx   = limit !== null
+        ? `Ranked for your ${_scopeAperture}mm scope under Bortle ${_bortle} skies (limit ≈ mag ${limit.toFixed(1)})`
+        : `Ranked by altitude & viewing window. Set aperture and Bortle for personalised picks.`;
+      html += `<div class="best-section">
+        <div class="best-header">⭐ Tonight's Best</div>
+        <div class="best-context">${ctx}</div>
+        <ol class="best-list">`;
+      for (const { o } of ranked) {
+        html += `<li><span class="best-id">${o.id}</span> <span class="best-name">${o.subtype} in ${o.con}</span> <span class="best-meta">${Math.round(o.peakAlt)}° · mag ${o.mag} · ${_fmtTimeShort(o.winStart)}–${_fmtTimeShort(o.winEnd)}</span></li>`;
+      }
+      html += '</ol></div>';
+    }
+  }
 
   // Visible objects grouped by quality tier
   if (visible.length > 0) {
