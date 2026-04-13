@@ -202,7 +202,7 @@ const FEATURES = [
   // Q-Day -3
   {name:'Atlas',                qday:-3, lat:46.7403, lon:44.3816, pos:'N', desc:'Prominent crater to E of Hercules'},
   {name:'Hercules',             qday:-3, lat:46.8219, lon:39.2135, pos:'N', desc:'Prominent crater on E edge of Mare Frigoris'},
-  {name:'Taurus Mountains',     qday:-3, lat:26.80639, lon:26.80639, pos:'N', desc:'Mountain range E of Mare Serenitatis'},
+  {name:'Taurus Mountains',     qday:-3, lat:27.3232, lon:40.3355, pos:'N', desc:'Mountain range E of Mare Serenitatis'},
   {name:'Pyrenees Mountains',   qday:-3, lat:-14.048, lon:41.5097, pos:'S', desc:'Mountain range forming inner ring E of Mare Nectaris'},
   {name:'Fracastorius',         qday:-3, lat:-21.3587, lon:33.0703, pos:'S', desc:'Lava-filled crater at S tip of Mare Nectaris'},
   {name:'Piccolomini',          qday:-3, lat:-29.6998, lon:32.1986, pos:'S', desc:'Midsized crater S of Fracastorius at S tip of Altai Scarp'},

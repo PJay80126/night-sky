@@ -12,6 +12,9 @@ let _uniLoc       = {};     // uniform locations
 let _mapZoom      = 1.0;    // 1.0–8.0
 let _mapPan       = { x: 0, y: 0 }; // normalised clip coords
 let _labelsOn     = true;
+let _telescopeView = false; // true = 180° flip (refractor/SCT view)
+let _libLatRad    = 0;      // sub-Earth selenographic lat (radians) — updated each render
+let _libLonRad    = 0;      // sub-Earth selenographic lon (radians) — updated each render
 let _dotPositions = [];     // [{feature, x, y, tonight}] in canvas pixels
 let _canvasSize   = 0;      // current canvas side length in px
 let _activeFeature = null;  // feature object currently shown in tooltip
@@ -32,35 +35,43 @@ const _FRAG = `
   uniform vec2  u_pan;
   uniform float u_sunLat;
   uniform float u_sunLon;
+  uniform float u_libLat;
+  uniform float u_libLon;
+  uniform float u_flip;
   const float PI = 3.14159265358979;
 
   void main() {
     vec2 c = (vUv - u_pan) / u_zoom;
+    c *= u_flip;  // 1.0 = eye mode, -1.0 = telescope mode (180° rotation)
     if (dot(c, c) >= 1.0) { discard; }
 
-    // Direct UV from orthographic image (disc fills the image)
-    float tu = (c.x + 1.0) / 2.0;
-    float tv = (1.0 - c.y) / 2.0;
-    vec4 color = texture2D(u_texture, vec2(tu, tv));
-
-    // Derive lat/lon from screen coords for terminator calculation
-    // Inverse orthographic centered at (0, 0)
+    // Inverse orthographic centered at sub-Earth point (libration):
+    // screen (c.x, c.y) → selenographic (phi, lam)
     float rho = length(c);
     float phi, lam;
     if (rho < 0.0001) {
-      phi = 0.0; lam = 0.0;
+      phi = u_libLat;
+      lam = u_libLon;
     } else {
-      float ang  = asin(clamp(rho, 0.0, 1.0));
-      float sinC = sin(ang), cosC = cos(ang);
-      phi = asin(c.y * sinC / rho);
-      lam = atan(c.x * sinC, rho * cosC);
+      float angC  = asin(clamp(rho, 0.0, 1.0));
+      float sinC  = sin(angC), cosC = cos(angC);
+      float sinL1 = sin(u_libLat), cosL1 = cos(u_libLat);
+      phi = asin(cosC * sinL1 + c.y * sinC * cosL1 / rho);
+      lam = u_libLon + atan(c.x * sinC, rho * cosL1 * cosC - c.y * sinL1 * sinC);
     }
 
-    // Terminator: cosine of sun incidence angle
+    // Forward orthographic centered at (0°,0°) → WAC texture UV
+    float tx = cos(phi) * sin(lam);
+    float ty = sin(phi);
+    float tu = (tx + 1.0) / 2.0;
+    float tv = (1.0 - ty) / 2.0;
+    vec4 color = texture2D(u_texture, vec2(tu, tv));
+
+    // Terminator: cosine of sun incidence at the selenographic point
     float cosI = sin(phi) * sin(u_sunLat)
                + cos(phi) * cos(u_sunLat) * cos(lam - u_sunLon);
 
-    // 5 deg penumbra band: sin(5 deg) = 0.087
+    // 5° penumbra band: sin(5°) ≈ 0.087
     float illum = smoothstep(-0.087, 0.087, cosI);
 
     // Night side at 2% brightness; lit side at 100%
@@ -93,7 +104,7 @@ function resizeMoonMap() {
 // ── Zoom / pan / labels ────────────────────────────────────────────────────
 
 function mapZoomIn() {
-  _mapZoom = Math.min(8.0, _mapZoom * 1.5);
+  _mapZoom = Math.min(12.0, _mapZoom * 1.5);
   _clampPan();
   _render();
 }
@@ -114,6 +125,12 @@ function mapToggleLabels() {
   _labelsOn = !_labelsOn;
   document.getElementById('mapLabelToggle').classList.toggle('label-off', !_labelsOn);
   _drawOverlay();
+}
+
+function mapToggleTelescope() {
+  _telescopeView = !_telescopeView;
+  document.getElementById('mapScopeToggle').classList.toggle('scope-on', _telescopeView);
+  _render();
 }
 
 function _clampPan() {
@@ -195,6 +212,9 @@ function _compileProgram() {
     pan:      gl.getUniformLocation(prog, 'u_pan'),
     sunLat:   gl.getUniformLocation(prog, 'u_sunLat'),
     sunLon:   gl.getUniformLocation(prog, 'u_sunLon'),
+    libLat:   gl.getUniformLocation(prog, 'u_libLat'),
+    libLon:   gl.getUniformLocation(prog, 'u_libLon'),
+    flip:     gl.getUniformLocation(prog, 'u_flip'),
   };
 }
 
@@ -252,7 +272,11 @@ function _computeUniforms() {
   const phase = Astronomy.MoonPhase(now);           // 0-360; 0=new, 180=full
   const DEG   = Math.PI / 180;
 
-  // Subsolar selenographic point
+  // Sub-Earth selenographic point — the libration center
+  _libLatRad = lib.elat * DEG;
+  _libLonRad = lib.elon * DEG;
+
+  // Subsolar selenographic point (for terminator)
   // +180 is critical: at new moon the sun is opposite Earth
   const subsolarLon = (lib.elon - phase + 180) * DEG;
   const subsolarLat = -lib.mlat * 0.30 * DEG;       // scaled from geocentric ecliptic lat
@@ -275,6 +299,9 @@ function _render() {
   gl.uniform2f(_uniLoc.pan,      _mapPan.x, _mapPan.y);
   gl.uniform1f(_uniLoc.sunLat,   subsolarLat);
   gl.uniform1f(_uniLoc.sunLon,   subsolarLon);
+  gl.uniform1f(_uniLoc.libLat,   _libLatRad);
+  gl.uniform1f(_uniLoc.libLon,   _libLonRad);
+  gl.uniform1f(_uniLoc.flip,     _telescopeView ? -1.0 : 1.0);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   _drawOverlay();
 }
@@ -289,17 +316,23 @@ function _projectFeature(f) {
   let   lam = f.lon * _DEG;
   if (lam > Math.PI) lam -= 2 * Math.PI; // convert 0–360 to -π…π
 
-  // Visibility: far side check (center of projection is 0,0)
-  const cosc = Math.cos(phi) * Math.cos(lam);
-  if (cosc <= 0) return null; // far side
+  // Visibility: near-side check using libration projection center
+  const cosC = Math.sin(_libLatRad) * Math.sin(phi)
+             + Math.cos(_libLatRad) * Math.cos(phi) * Math.cos(lam - _libLonRad);
+  if (cosC <= 0) return null; // far side
 
-  // Forward orthographic projection (center 0,0 — no libration, no rotation)
-  const xs = Math.cos(phi) * Math.sin(lam);
-  const ys = Math.sin(phi);
+  // Forward orthographic centered at sub-Earth point (libration)
+  const xs = Math.cos(phi) * Math.sin(lam - _libLonRad);
+  const ys = Math.cos(_libLatRad) * Math.sin(phi)
+           - Math.sin(_libLatRad) * Math.cos(phi) * Math.cos(lam - _libLonRad);
+
+  // Apply telescope flip (180° rotation = negate both axes)
+  const fxs = _telescopeView ? -xs : xs;
+  const fys = _telescopeView ? -ys : ys;
 
   // Apply zoom and pan → clip coords (0.85 matches the disc scale in the shader)
-  const vx = xs * _mapZoom * 0.85 + _mapPan.x;
-  const vy = ys * _mapZoom * 0.85 + _mapPan.y;
+  const vx = fxs * _mapZoom * 0.85 + _mapPan.x;
+  const vy = fys * _mapZoom * 0.85 + _mapPan.y;
   if (Math.abs(vx) > 1 || Math.abs(vy) > 1) return null; // outside canvas
 
   // Clip coords → canvas pixels (flip Y: GL Y+ up, canvas Y+ down)
@@ -449,7 +482,7 @@ function _addInteraction() {
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      _mapZoom = Math.max(1.0, Math.min(8.0, _mapZoom * (d / _lastDist)));
+      _mapZoom = Math.max(1.0, Math.min(12.0, _mapZoom * (d / _lastDist)));
       _clampPan();
       _lastDist = d;
       _wasDragging = true;
@@ -505,7 +538,7 @@ function _addInteraction() {
   ovc.addEventListener('wheel', e => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-    _mapZoom = Math.max(1.0, Math.min(8.0, _mapZoom * factor));
+    _mapZoom = Math.max(1.0, Math.min(12.0, _mapZoom * factor));
     _clampPan();
     _render();
   }, { passive: false });

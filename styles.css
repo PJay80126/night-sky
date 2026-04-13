@@ -704,6 +704,7 @@ h1 {
 }
 .map-controls button:active { background: var(--crater); }
 .map-controls button.label-off { opacity: 0.4; }
+.map-controls button.scope-on { border-color: var(--gold); background: #1a1a08; }
 
 /* ── Map tooltip ──────────────────────────────────────────────────────── */
 #mapTooltip {
