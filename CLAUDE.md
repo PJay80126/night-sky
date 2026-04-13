@@ -19,8 +19,8 @@ Requires browser geolocation permission for accurate astronomy calculations.
 ### File Layout
 ```
 index.html              # Markup — 5 tabs: Moon, Planets, Events, Messier, Forecast
-styles.css              # All CSS (~36KB), dark theme, CSS custom properties
-sw.js                   # Service worker — cache-first, version tagged (e.g. night-sky-v32)
+styles.css              # All CSS (~40KB), dark theme, CSS custom properties
+sw.js                   # Service worker — cache-first, version tagged (e.g. night-sky-v34)
 manifest.json           # PWA manifest
 astronomy.browser.js    # Bundled Astronomy.js library (Don Cross) — do not modify
 js/
@@ -32,7 +32,7 @@ js/
   events.js             # Moon phases, oppositions, meteor showers, eclipses
   messier.js            # 110-object Messier catalogue with filter chips
   forecast.js           # Open-Meteo API, cloud/temp charts, observing conditions
-photos/                 # 24 high-res lunar region images + WAC_GLOBAL_O000N0000_032P.jpg (moon globe texture)
+photos/                 # 35 high-res lunar region PNGs + WAC_GLOBAL_O000N0000_032P.jpg (moon globe texture)
 fonts/                  # Cinzel + Crimson Pro WOFF2 (self-hosted)
 icons/                  # PWA icons (192, 512)
 ```
@@ -46,6 +46,8 @@ icons/                  # PWA icons (192, 512)
 - **Moon Map**: WebGL 1.0 fragment shader displays the WAC orthographic texture (`WAC_GLOBAL_O000N0000_032P.jpg`). The WAC image is itself an orthographic projection centered at (0°N, 0°E). The shader does an inverse orthographic from screen → selenographic lat/lon centered on the current sub-Earth point (libration), then a forward orthographic back to WAC-image UVs — so features shift with libration but stay aligned with the texture. A 2D canvas overlay draws feature dots and labels using the same two-step projection (`_projectFeature`). The 0.85 BASE_SCALE factor must stay in sync across three places: shader zoom uniform, overlay `_projectFeature`, and `_clampPan`. Max zoom is 12× (buttons, wheel, and pinch). WebGL requires HTTP (not `file://`) due to CORS restrictions on `texImage2D`.
 - **Lunar terminator**: Rendered in the fragment shader using uniforms `u_sunLat`/`u_sunLon` (subsolar selenographic point). `subsolarLon = (lib.elon - phase + 180) * DEG` (the +180 is critical — at new moon the Sun is opposite Earth), `subsolarLat = -lib.mlat * 0.30 * DEG`. Night side rendered at 2% brightness with 5° `smoothstep` penumbra.
 - **Telescope view**: `u_flip` uniform (1.0 = eye, -1.0 = telescope) rotates the view 180° for refractor/SCT users. The overlay applies the same flip to feature positions. Toggled via the telescope button in `.map-controls`.
+- **Cursor-anchored zoom**: Wheel zoom keeps the point under the cursor fixed; pinch zoom keeps the midpoint between the two fingers fixed. Implemented via `_zoomAt(newZoom, clipX, clipY)` + `_clientToClip()`. The +/- buttons still zoom around the canvas center by design (no cursor position available).
+- **Mobile viewport**: `body` uses `min-height: 100dvh` (with `100vh` fallback) so the layout tracks the mobile browser's dynamic viewport as the URL bar shows/hides. This is required to keep the fixed-position `.tab-bar` flush against the visible bottom on first paint. Do not switch back to plain `100vh` — the tab bar rendered "half-height" on first load before this fix.
 - **Catalogue data**: Embedded as `const` arrays/objects (PHOTO_DATA, MESSIER, METEOR_SHOWERS, etc.) — not fetched
 - **Weather**: Open-Meteo API — free, no auth, returns JSON directly
 
@@ -59,7 +61,7 @@ icons/                  # PWA icons (192, 512)
 ```
 
 ## Service Worker
-Cache version is hardcoded in `sw.js` as `CACHE = 'night-sky-v32'`. **Bump the version number whenever assets change** to force cache invalidation for existing installs. The assets list at the top of `sw.js` must include any new files added to the project.
+Cache version is hardcoded in `sw.js` as `CACHE = 'night-sky-v34'`. **Bump the version number whenever assets change** to force cache invalidation for existing installs. The assets list at the top of `sw.js` must include any new files added to the project.
 
 The fetch handler uses cache-first strategy: cached response wins; network is fallback only.
 
