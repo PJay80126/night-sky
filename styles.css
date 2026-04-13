@@ -19,7 +19,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Crimson Pro', Georgia, serif;
-  min-height: 100vh;
+  min-height: 100vh;            /* fallback for older browsers */
+  min-height: 100dvh;           /* tracks mobile URL bar show/hide */
   overflow-x: hidden;
 }
 
