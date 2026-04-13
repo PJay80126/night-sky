@@ -142,6 +142,15 @@ function dsoAltitude(raDeg, decDeg, date) {
   return hor.altitude;
 }
 
+// Fast altitude for a fixed sidereal object, given pre-computed GAST (hours).
+// Avoids creating an Observer / calling Horizon on every sample.
+function _dsoAltFast(raHours, decDeg, gast, sinLat, cosLat, lonHours) {
+  const ha = (gast + lonHours - raHours) * 15 * Math.PI / 180; // hour angle (rad)
+  const decR = decDeg * Math.PI / 180;
+  const sinAlt = sinLat * Math.sin(decR) + cosLat * Math.cos(decR) * Math.cos(ha);
+  return Math.asin(Math.max(-1, Math.min(1, sinAlt))) * 180 / Math.PI;
+}
+
 // Find peak altitude during the night window for an object
 function dsoPeakAlt(raDeg, decDeg, nightStart, nightEnd) {
   let peak = -Infinity;
@@ -153,6 +162,68 @@ function dsoPeakAlt(raDeg, decDeg, nightStart, nightEnd) {
     } catch(e) {}
   }
   return peak;
+}
+
+// Nautical twilight (sun alt < -12°) window for tonight.
+function _nauticalNight(date) {
+  const midnight = new Date(date); midnight.setHours(0, 0, 0, 0);
+  const observer = new Astronomy.Observer(State.obsLat, State.obsLon, 0);
+  let start = null, end = null;
+  try { start = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, -1, midnight, 1, -12)?.date; } catch(e) {}
+  try {
+    const from = start ?? new Date(midnight.getTime() + 20 * 3600000);
+    end = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, +1, from, 1, -12)?.date;
+  } catch(e) {}
+  return {
+    nightStart: start ?? new Date(midnight.getTime() + 18 * 3600000),
+    nightEnd:   end   ?? new Date(midnight.getTime() + 30 * 3600000),
+    hasTrueDark: !!(start && end),
+  };
+}
+
+// Conservative minimum aperture (mm) for a meaningful view.
+// Based on magnitude; dimmer = bigger scope needed.
+function _recommendAperture(obj) {
+  if (obj.mag <= 4.0)  return 50;   // binocular-easy
+  if (obj.mag <= 6.0)  return 70;
+  if (obj.mag <= 7.5)  return 100;
+  if (obj.mag <= 9.0)  return 130;
+  if (obj.mag <= 10.0) return 150;
+  return 200;
+}
+
+// Recommended magnification range [low, high] — divide by your scope focal
+// length to pick an eyepiece (e.g. 100× on a 1000mm scope = 10mm eyepiece).
+function _recommendMagnification(obj) {
+  switch (obj.subtype) {
+    case 'Planetary Nebula':  return [100, 250];
+    case 'Globular Cluster':  return [80, 200];
+    case 'Emission Nebula':   return [30, 100];
+    case 'Supernova Remnant': return [50, 120];
+    case 'Reflection Nebula': return [30, 100];
+    case 'Spiral Galaxy':
+    case 'Elliptical Galaxy':
+    case 'Lenticular Galaxy':
+    case 'Irregular Galaxy':  return obj.mag <= 7 ? [30, 100] : [60, 150];
+    case 'Open Cluster':      return obj.mag <= 5 ? [20, 60]  : [40, 100];
+    case 'Star Cloud':        return [10, 40];
+    case 'Double Star':       return [50, 150];
+    case 'Asterism':          return [20, 60];
+    default:                  return [50, 120];
+  }
+}
+
+function _fmtTimeShort(d) {
+  if (!d) return '—';
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function _fmtDuration(ms) {
+  const mins = Math.round(ms / 60000);
+  const h = Math.floor(mins / 60), m = mins % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
 }
 
 // Altitude quality badge
@@ -188,12 +259,56 @@ function renderMessier() {
 
 function _computeMessier() {
   const now  = today();
-  const { nightStart, nightEnd } = getNightWindow(now);
+  const { nightStart, nightEnd } = _nauticalNight(now);
+
+  // Pre-sample the nautical-twilight night at 5-minute steps.
+  // GAST (Greenwich apparent sidereal time) is cached per sample so each
+  // object only pays trig cost, not an Astronomy.Horizon call.
+  const samples = [];
+  const step = 5 * 60000;
+  for (let t = nightStart.getTime(); t <= nightEnd.getTime(); t += step) {
+    const d = new Date(t);
+    samples.push({ time: d, gast: Astronomy.SiderealTime(d) });
+  }
+  const latRad   = State.obsLat * Math.PI / 180;
+  const sinLat   = Math.sin(latRad);
+  const cosLat   = Math.cos(latRad);
+  const lonHours = State.obsLon / 15;
+  const ALT_MIN  = 20;
 
   _messierResults = MESSIER.map(obj => {
-    const raDeg  = obj.ra * 15; // RA in degrees
-    const peakAlt = dsoPeakAlt(raDeg, obj.dec, nightStart, nightEnd);
-    return { ...obj, raDeg, peakAlt };
+    let peakAlt = -Infinity, peakTime = null;
+    let curStart = null, winStart = null, winEnd = null, winDurMs = 0;
+
+    for (let i = 0; i < samples.length; i++) {
+      const s = samples[i];
+      const alt = _dsoAltFast(obj.ra, obj.dec, s.gast, sinLat, cosLat, lonHours);
+      if (alt > peakAlt) { peakAlt = alt; peakTime = s.time; }
+      if (alt >= ALT_MIN) {
+        if (curStart === null) curStart = s.time;
+      } else if (curStart !== null) {
+        const dur = samples[i - 1].time - curStart;
+        if (dur > winDurMs) { winDurMs = dur; winStart = curStart; winEnd = samples[i - 1].time; }
+        curStart = null;
+      }
+    }
+    if (curStart !== null && samples.length) {
+      const last = samples[samples.length - 1].time;
+      const dur = last - curStart;
+      if (dur > winDurMs) { winDurMs = dur; winStart = curStart; winEnd = last; }
+    }
+
+    return {
+      ...obj,
+      raDeg: obj.ra * 15,
+      peakAlt,
+      peakTime,
+      winStart,
+      winEnd,
+      winDurMs,
+      minAperture: _recommendAperture(obj),
+      bestMag:     _recommendMagnification(obj),
+    };
   });
 
   // Sort: visible objects first by peak altitude (desc), then below-horizon by altitude (desc)
@@ -212,7 +327,7 @@ function _computeMessier() {
 function _renderMessierResults() {
   const body = document.getElementById('messierBody');
   const now  = today();
-  const { nightStart, nightEnd } = getNightWindow(now);
+  const { nightStart, nightEnd } = _nauticalNight(now);
 
   const fmtTime = d => {
     if (!d) return '—';
@@ -268,12 +383,18 @@ function _renderMessierResults() {
       for (const obj of tier.objects) {
         const icon  = MESSIER_ICONS[obj.subtype] || '◆';
         const badge = dsoAltBadge(obj.peakAlt);
+        const winTxt = obj.winStart
+          ? `🕐 ${_fmtTimeShort(obj.winStart)}–${_fmtTimeShort(obj.winEnd)} (${_fmtDuration(obj.winDurMs)})`
+          : `🕐 below 20° tonight`;
+        const apTxt  = `🔭 ≥${obj.minAperture}mm`;
+        const magTxt = `✨ ${obj.bestMag[0]}–${obj.bestMag[1]}×`;
         html += `<div class="planet-row messier-row" style="animation-delay:${delay}ms">
           <span class="messier-id">${obj.id}</span>
           <span class="messier-icon">${icon}</span>
           <div class="messier-info">
             <div class="messier-name">${obj.subtype} <span class="messier-con">in ${obj.con}</span></div>
             <div class="messier-desc">${obj.desc}</div>
+            <div class="messier-obs">${apTxt} · ${magTxt} · ${winTxt}</div>
           </div>
           <div class="messier-right">
             <span class="planet-badge ${badge.cls}">${Math.round(obj.peakAlt)}°</span>
