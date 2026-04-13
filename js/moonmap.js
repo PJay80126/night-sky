@@ -139,6 +139,27 @@ function _clampPan() {
   _mapPan.y = Math.max(-max, Math.min(max, _mapPan.y));
 }
 
+// Zoom while keeping the world point under (clipX, clipY) anchored in place.
+// clipX/clipY are in GL clip coords (-1..1, Y+ up).
+function _zoomAt(newZoom, clipX, clipY) {
+  newZoom = Math.max(1.0, Math.min(12.0, newZoom));
+  if (newZoom === _mapZoom) return;
+  const ratio = newZoom / _mapZoom;
+  _mapPan.x = clipX - (clipX - _mapPan.x) * ratio;
+  _mapPan.y = clipY - (clipY - _mapPan.y) * ratio;
+  _mapZoom  = newZoom;
+  _clampPan();
+}
+
+// Convert a clientX/clientY from a pointer event to GL clip coords on the overlay canvas.
+function _clientToClip(clientX, clientY) {
+  const ovc  = document.getElementById('moonOverlayCanvas');
+  const rect = ovc.getBoundingClientRect();
+  const nx = (clientX - rect.left) / rect.width;
+  const ny = (clientY - rect.top)  / rect.height;
+  return { x: nx * 2 - 1, y: 1 - ny * 2 };
+}
+
 
 // ── Core init ──────────────────────────────────────────────────────────────
 
@@ -482,8 +503,10 @@ function _addInteraction() {
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      _mapZoom = Math.max(1.0, Math.min(12.0, _mapZoom * (d / _lastDist)));
-      _clampPan();
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const clip = _clientToClip(midX, midY);
+      _zoomAt(_mapZoom * (d / _lastDist), clip.x, clip.y);
       _lastDist = d;
       _wasDragging = true;
       _render();
@@ -538,8 +561,8 @@ function _addInteraction() {
   ovc.addEventListener('wheel', e => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-    _mapZoom = Math.max(1.0, Math.min(12.0, _mapZoom * factor));
-    _clampPan();
+    const clip = _clientToClip(e.clientX, e.clientY);
+    _zoomAt(_mapZoom * factor, clip.x, clip.y);
     _render();
   }, { passive: false });
 }
