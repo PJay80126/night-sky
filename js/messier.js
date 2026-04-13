@@ -238,9 +238,45 @@ function dsoAltBadge(peakAlt) {
 let _messierLoaded  = false;
 let _messierResults = [];   // cached computed objects with peakAlt
 let _messierFilter  = 'all';
+let _scopeFL        = (() => {
+  const v = parseInt(localStorage.getItem('nightsky.scopeFL'), 10);
+  return Number.isFinite(v) && v >= 100 && v <= 5000 ? v : null;
+})();
+
+// Initialise the scope-FL input once the DOM is ready, mirroring saved value.
+function _initScopeInput() {
+  const el = document.getElementById('scopeFL');
+  if (el && _scopeFL !== null && el.value === '') el.value = _scopeFL;
+}
+
+function setScopeFL(value) {
+  const v = parseInt(value, 10);
+  if (Number.isFinite(v) && v >= 100 && v <= 5000) {
+    _scopeFL = v;
+    localStorage.setItem('nightsky.scopeFL', String(v));
+  } else {
+    _scopeFL = null;
+    localStorage.removeItem('nightsky.scopeFL');
+    const el = document.getElementById('scopeFL');
+    if (el && value === '') el.value = '';
+  }
+  if (_messierLoaded) _renderMessierResults();
+}
+
+// Format the magnification range as either "low–high×" (no scope) or
+// "lo–hi mm (low–high×)" if the user has set a scope focal length.
+function _fmtMag(bestMag) {
+  const [lo, hi] = bestMag;
+  if (_scopeFL === null) return `✨ ${lo}–${hi}×`;
+  // Higher magnification = shorter eyepiece. Round to nearest mm.
+  const epHigh = Math.max(2, Math.round(_scopeFL / hi));
+  const epLow  = Math.max(2, Math.round(_scopeFL / lo));
+  return `✨ ${epHigh}–${epLow}mm eyepiece (${lo}–${hi}×)`;
+}
 
 function renderMessier() {
   const body = document.getElementById('messierBody');
+  _initScopeInput();
 
   if (State.obsLat === null || State.obsLon === null) {
     body.innerHTML = locationErrorHTML('messier');
@@ -387,7 +423,7 @@ function _renderMessierResults() {
           ? `🕐 ${_fmtTimeShort(obj.winStart)}–${_fmtTimeShort(obj.winEnd)} (${_fmtDuration(obj.winDurMs)})`
           : `🕐 below 20° tonight`;
         const apTxt  = `🔭 ≥${obj.minAperture}mm`;
-        const magTxt = `✨ ${obj.bestMag[0]}–${obj.bestMag[1]}×`;
+        const magTxt = _fmtMag(obj.bestMag);
         html += `<div class="planet-row messier-row" style="animation-delay:${delay}ms">
           <span class="messier-id">${obj.id}</span>
           <span class="messier-icon">${icon}</span>
