@@ -16,7 +16,8 @@ let _telescopeView = false; // true = 180° flip (refractor/SCT view)
 let _libLatRad    = 0;      // sub-Earth selenographic lat (radians) — updated each render
 let _libLonRad    = 0;      // sub-Earth selenographic lon (radians) — updated each render
 let _dotPositions = [];     // [{feature, x, y, tonight}] in canvas pixels
-let _canvasSize   = 0;      // current canvas side length in px
+let _canvasSize   = 0;      // current canvas side length in CSS pixels
+let _dpr          = 1;      // devicePixelRatio used for the current canvas buffers (capped at 3)
 let _activeFeature = null;  // feature object currently shown in tooltip
 
 // ── GLSL shaders ───────────────────────────────────────────────────────────
@@ -157,23 +158,44 @@ function _clientToClip(clientX, clientY) {
 
 // ── Core init ──────────────────────────────────────────────────────────────
 
-function _initMoonMap() {
-  const container = document.getElementById('mapContainer');
-  const w = Math.min(container.parentElement.clientWidth, 500);
-  _canvasSize = w;
+// Size both canvas backing stores at device pixels while keeping the CSS
+// size at `cssW`. Without this the browser stretches a CSS-sized buffer
+// across the device-pixel grid and the map looks blurry on high-DPR phones.
+function _sizeCanvases(cssW) {
+  _canvasSize = cssW;
+  _dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const bufW = Math.round(cssW * _dpr);
 
   const glc = document.getElementById('moonGlCanvas');
   const ovc = document.getElementById('moonOverlayCanvas');
-  glc.width = glc.height = ovc.width = ovc.height = w;
-  container.style.width = container.style.height = w + 'px';
 
-  _gl = glc.getContext('webgl', { alpha: true });
+  glc.width  = glc.height  = bufW;
+  ovc.width  = ovc.height  = bufW;
+  glc.style.width = glc.style.height = cssW + 'px';
+  ovc.style.width = ovc.style.height = cssW + 'px';
+
+  // Scale the 2D overlay context so existing draw code can keep using
+  // CSS-pixel coordinates. Resizing the canvas resets context state, so
+  // this must run after every size change.
+  ovc.getContext('2d').setTransform(_dpr, 0, 0, _dpr, 0, 0);
+
+  return bufW;
+}
+
+function _initMoonMap() {
+  const container = document.getElementById('mapContainer');
+  const cssW = Math.min(container.parentElement.clientWidth, 500);
+
+  const bufW = _sizeCanvases(cssW);
+  container.style.width = container.style.height = cssW + 'px';
+
+  _gl = document.getElementById('moonGlCanvas').getContext('webgl', { alpha: true });
   if (!_gl) {
     container.innerHTML = '<p class="no-targets" style="border-radius:50%;padding:40px;text-align:center">WebGL not available on this device.</p>';
     return;
   }
 
-  _gl.viewport(0, 0, w, w);
+  _gl.viewport(0, 0, bufW, bufW);
   _compileProgram();
   _setupQuad();
   _loadTexture();
@@ -183,14 +205,13 @@ function _initMoonMap() {
 function _resizeCanvases() {
   const container = document.getElementById('mapContainer');
   if (!container) return;
-  const w = Math.min(container.parentElement.clientWidth, 500);
-  if (w === _canvasSize) return;
-  _canvasSize = w;
-  const glc = document.getElementById('moonGlCanvas');
-  const ovc = document.getElementById('moonOverlayCanvas');
-  glc.width = glc.height = ovc.width = ovc.height = w;
-  container.style.width = container.style.height = w + 'px';
-  _gl.viewport(0, 0, w, w);
+  const cssW    = Math.min(container.parentElement.clientWidth, 500);
+  const nextDpr = Math.min(window.devicePixelRatio || 1, 3);
+  if (cssW === _canvasSize && nextDpr === _dpr) return;
+
+  const bufW = _sizeCanvases(cssW);
+  container.style.width = container.style.height = cssW + 'px';
+  _gl.viewport(0, 0, bufW, bufW);
 }
 
 
