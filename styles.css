@@ -825,6 +825,27 @@ body.night-mode #nightModeToggle {
 .map-controls button:active { background: var(--crater); }
 .map-controls button.label-off { opacity: 0.4; }
 .map-controls button.scope-on { border-color: var(--gold); background: #1a1a08; }
+.map-controls button.fs-on    { border-color: var(--gold); background: #1a1a08; }
+
+/* ── Pseudo-fullscreen (toggled by mapToggleFullscreen) ───────────────── */
+body.map-fs { overflow: hidden; }
+body.map-fs #moonMapView {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  padding: 0;
+  justify-content: center;
+}
+body.map-fs #mapContainer { margin: auto; }
+body.map-fs #mapToolbar {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 12px 16px env(safe-area-inset-bottom, 12px);
+  background: rgba(6,9,15,0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  margin-top: 0;
+}
+body.map-fs .tab-bar,
+body.map-fs #nightModeToggle { display: none; }
 
 /* ── Map tooltip ──────────────────────────────────────────────────────── */
 #mapTooltip {

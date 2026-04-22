@@ -128,6 +128,28 @@ function mapToggleTelescope() {
   _render();
 }
 
+// Pseudo-fullscreen: toggles a `body.map-fs` class that makes #moonMapView
+// cover the viewport via CSS. No native Fullscreen API — avoids iOS Safari
+// permission quirks and works identically across platforms.
+function mapToggleFullscreen() {
+  const on = !document.body.classList.contains('map-fs');
+  document.body.classList.toggle('map-fs', on);
+  const btn = document.getElementById('mapFullscreenToggle');
+  if (btn) btn.classList.toggle('fs-on', on);
+  // Canvas sizing depends on whether we're in fullscreen; re-run after
+  // the CSS has applied so parentElement dimensions are current.
+  requestAnimationFrame(() => {
+    resizeMoonMap();
+  });
+}
+
+// Escape key exits fullscreen.
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('map-fs')) {
+    mapToggleFullscreen();
+  }
+});
+
 function _clampPan() {
   const max = _mapZoom * 0.85;
   _mapPan.x = Math.max(-max, Math.min(max, _mapPan.x));
@@ -158,6 +180,20 @@ function _clientToClip(clientX, clientY) {
 
 // ── Core init ──────────────────────────────────────────────────────────────
 
+// Pick the CSS-pixel side length for the map. Normal mode is capped at
+// 500 to match the embedded layout; fullscreen uses the viewport minus
+// an allowance for the toolbar below the disc.
+function _computeCssW() {
+  const container = document.getElementById('mapContainer');
+  if (!container) return 0;
+  const parent = container.parentElement;
+  const inFs   = document.body.classList.contains('map-fs');
+  const availW = parent.clientWidth;
+  const availH = inFs ? (parent.clientHeight - 80) : Infinity;
+  const cap    = inFs ? Infinity : 500;
+  return Math.max(0, Math.min(availW, availH, cap));
+}
+
 // Size both canvas backing stores at device pixels while keeping the CSS
 // size at `cssW`. Without this the browser stretches a CSS-sized buffer
 // across the device-pixel grid and the map looks blurry on high-DPR phones.
@@ -184,7 +220,7 @@ function _sizeCanvases(cssW) {
 
 function _initMoonMap() {
   const container = document.getElementById('mapContainer');
-  const cssW = Math.min(container.parentElement.clientWidth, 500);
+  const cssW = _computeCssW();
 
   const bufW = _sizeCanvases(cssW);
   container.style.width = container.style.height = cssW + 'px';
@@ -205,7 +241,7 @@ function _initMoonMap() {
 function _resizeCanvases() {
   const container = document.getElementById('mapContainer');
   if (!container) return;
-  const cssW    = Math.min(container.parentElement.clientWidth, 500);
+  const cssW    = _computeCssW();
   const nextDpr = Math.min(window.devicePixelRatio || 1, 3);
   if (cssW === _canvasSize && nextDpr === _dpr) return;
 
