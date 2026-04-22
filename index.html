@@ -33,6 +33,10 @@
       <span class="tab-icon">🌙</span>
       <span class="tab-label">Moon</span>
     </button>
+    <button class="tab-btn"        id="tab-moonmap"  onclick="switchTab('moonmap')">
+      <span class="tab-icon">🗺</span>
+      <span class="tab-label">Map</span>
+    </button>
     <button class="tab-btn"        id="tab-planets"  onclick="switchTab('planets')">
       <span class="tab-icon">🪐</span>
       <span class="tab-label">Planets</span>
@@ -54,15 +58,6 @@
 
   <!-- ── Moon tab ─────────────────────────────────────────────────────── -->
   <div class="tab-panel active" id="panel-moon">
-
-    <!-- Sub-tab switcher -->
-    <div id="moonSubTabs">
-      <button id="moonSubTab-features" class="active" onclick="switchMoonSubTab('features')">FEATURES</button>
-      <button id="moonSubTab-map"                     onclick="switchMoonSubTab('map')">MAP</button>
-    </div>
-
-    <!-- Features sub-view (existing content) -->
-    <div id="moonFeaturesView">
 
       <div class="moon-header">
         <svg class="moon-svg" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -154,10 +149,12 @@
         </div>
       </div>
 
-    </div><!-- /moonFeaturesView -->
+  </div><!-- /panel-moon -->
 
-    <!-- Map sub-view -->
-    <div id="moonMapView" style="display:none">
+
+  <!-- ── Moon Map tab ─────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="panel-moonmap">
+    <div id="moonMapView">
       <div id="mapContainer">
         <canvas id="moonGlCanvas"></canvas>
         <canvas id="moonOverlayCanvas"></canvas>
@@ -176,9 +173,8 @@
           <button onclick="mapResetView()" title="Reset view">&#8962;</button>
         </div>
       </div>
-    </div><!-- /moonMapView -->
-
-  </div><!-- /panel-moon -->
+    </div>
+  </div><!-- /panel-moonmap -->
 
 
   <!-- ── Planets tab ──────────────────────────────────────────────────── -->

@@ -80,18 +80,12 @@ const _FRAG = `
 `;
 
 
-// ── Sub-tab switching ──────────────────────────────────────────────────────
+// ── Lazy init (called by switchTab when the Map tab is activated) ──────────
 
-function switchMoonSubTab(name) {
-  document.getElementById('moonFeaturesView').style.display = name === 'features' ? '' : 'none';
-  document.getElementById('moonMapView').style.display      = name === 'map'      ? '' : 'none';
-  document.getElementById('moonSubTab-features').classList.toggle('active', name === 'features');
-  document.getElementById('moonSubTab-map').classList.toggle('active', name === 'map');
-
-  if (name === 'map' && !State.moonmapLoaded) {
-    State.moonmapLoaded = true;
-    _initMoonMap();
-  }
+function initMoonMap() {
+  if (State.moonmapLoaded) return;
+  State.moonmapLoaded = true;
+  _initMoonMap();
 }
 
 function resizeMoonMap() {

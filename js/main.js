@@ -15,6 +15,11 @@ function switchTab(name) {
   indicator.style.left  = (btnRect.left - barRect.left) + 'px';
   indicator.style.width = btnRect.width + 'px';
 
+  if (name === 'moonmap') {
+    initMoonMap();
+    requestAnimationFrame(() => resizeMoonMap());
+  }
+
   if (name === 'planets' && !State.planetsLoaded) {
     State.planetsLoaded = true;
     getLocation(() => renderPlanets(), () => renderPlanets());
@@ -69,6 +74,21 @@ window.addEventListener('resize', () => {
 
 
 // ── Service worker ────────────────────────────────────────────────────────
+
+// Anchor the fixed tab bar to the *visual* viewport bottom so Chrome Android's
+// dynamic URL bar never overlaps it (especially on short tabs like Moon where
+// the page doesn't scroll enough to retract the URL bar).
+(function trackVisualViewport() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const update = () => {
+    const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.documentElement.style.setProperty('--vv-bottom-offset', offset + 'px');
+  };
+  vv.addEventListener('resize', update);
+  vv.addEventListener('scroll', update);
+  update();
+})();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

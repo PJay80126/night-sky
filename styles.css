@@ -54,7 +54,7 @@ body::before {
 
 /* ── Tab navigation ──────────────────────────────────────────────────────── */
 .tab-bar {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  position: fixed; bottom: var(--vv-bottom-offset, 0px); left: 0; right: 0; z-index: 100;
   display: flex;
   background: rgba(10, 14, 24, 0.96);
   border-top: 1px solid rgba(201,168,76,0.2);
@@ -518,7 +518,7 @@ h1 {
   .fc-current-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 374px) {
+@media (max-width: 480px) {
   .tab-btn .tab-label { display: none; }
   .tab-btn .tab-icon { font-size: 1.5rem; }
   .tab-btn { padding: 14px 0 12px; }
@@ -777,24 +777,6 @@ body.night-mode #nightModeToggle {
   .messier-desc { display: none; }
   .messier-name { font-size: 0.82rem; }
 }
-
-/* ── Moon sub-tabs ────────────────────────────────────────────────────── */
-#moonSubTabs {
-  display: flex;
-  border-bottom: 1px solid var(--crater);
-  background: var(--surface);
-  margin: 0 -20px;
-  padding: 0 20px;
-}
-#moonSubTabs button {
-  flex: 1; padding: 10px 0;
-  background: transparent; border: none; border-bottom: 2px solid transparent;
-  color: var(--text-dim);
-  font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.12em;
-  cursor: pointer; transition: color 0.2s, border-color 0.2s;
-  -webkit-tap-highlight-color: transparent;
-}
-#moonSubTabs button.active { color: var(--gold); border-bottom-color: var(--gold); }
 
 /* ── Map container ────────────────────────────────────────────────────── */
 #moonMapView {
