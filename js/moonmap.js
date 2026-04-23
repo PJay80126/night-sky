@@ -360,7 +360,7 @@ function _render() {
   const gl = _gl;
   if (!gl || !_textureReady) return;
   const { subsolarLat, subsolarLon } = _computeUniforms();
-  gl.viewport(0, 0, _canvasSize, _canvasSize);
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.useProgram(_program);
