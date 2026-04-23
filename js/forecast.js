@@ -78,12 +78,23 @@ function parseForecast(data) {
     wspd:        get('wind_speed_10m', i),
     precip_prob: get('precipitation_probability', i),
     // HRDPS pressure-level fields — null when in fallback mode.
-    // Winds in km/h, temperatures in °C, RH in %.
+    // Winds in km/h, directions in degrees, temperatures in °C, heights in m.
     wind250:     get('wind_speed_250hPa', i),
     wind500:     get('wind_speed_500hPa', i),
     wind850:     get('wind_speed_850hPa', i),
+    wind1000:    get('wind_speed_1000hPa', i),
+    wdir250:     get('wind_direction_250hPa', i),
+    wdir500:     get('wind_direction_500hPa', i),
+    wdir850:     get('wind_direction_850hPa', i),
+    wdir1000:    get('wind_direction_1000hPa', i),
+    temp250:     get('temperature_250hPa', i),
     temp500:     get('temperature_500hPa', i),
     temp850:     get('temperature_850hPa', i),
+    temp1000:    get('temperature_1000hPa', i),
+    z250:        get('geopotential_height_250hPa', i),
+    z500:        get('geopotential_height_500hPa', i),
+    z850:        get('geopotential_height_850hPa', i),
+    z1000:       get('geopotential_height_1000hPa', i),
     rh500:       get('relative_humidity_500hPa', i),
     cape:        get('cape', i),
   }));
