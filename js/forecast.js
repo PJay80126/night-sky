@@ -10,10 +10,16 @@ const _SURFACE_VARS = [
   'temperature_2m','relative_humidity_2m','wind_speed_10m',
   'dew_point_2m','precipitation_probability',
 ];
-// Upper-air variables needed for seeing/transparency scoring. HRDPS only.
+// Upper-air variables needed for Richardson-Number seeing. HRDPS only.
 const _UPPER_AIR_VARS = [
-  'wind_speed_250hPa','wind_speed_500hPa','wind_speed_850hPa',
-  'temperature_500hPa','temperature_850hPa',
+  // Winds at four pressure levels (speed + direction)
+  'wind_speed_250hPa','wind_speed_500hPa','wind_speed_850hPa','wind_speed_1000hPa',
+  'wind_direction_250hPa','wind_direction_500hPa','wind_direction_850hPa','wind_direction_1000hPa',
+  // Temperatures at all four levels (need 250 and 1000 for end-of-column Ri pairs)
+  'temperature_250hPa','temperature_500hPa','temperature_850hPa','temperature_1000hPa',
+  // Geopotential heights — real layer thicknesses, not standard-atmosphere estimates
+  'geopotential_height_250hPa','geopotential_height_500hPa','geopotential_height_850hPa','geopotential_height_1000hPa',
+  // Still used by transparency scoring
   'relative_humidity_500hPa','cape',
 ];
 
