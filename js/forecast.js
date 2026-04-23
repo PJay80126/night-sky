@@ -297,35 +297,78 @@ function _scoreBucket(score) {
 }
 
 function computeSeeing(nightHrs) {
-  const jet   = forecastMedian(nightHrs, 'wind250');
-  const mid   = forecastMedian(nightHrs, 'wind500');
-  const t850  = forecastMedian(nightHrs, 'temp850');
-  const t500  = forecastMedian(nightHrs, 'temp500');
-  const sfc   = forecastMedian(nightHrs, 'wspd');
+  // Compute nightly medians for every field Ri needs.
+  const temps = {
+    250:  forecastMedian(nightHrs, 'temp250'),
+    500:  forecastMedian(nightHrs, 'temp500'),
+    850:  forecastMedian(nightHrs, 'temp850'),
+    1000: forecastMedian(nightHrs, 'temp1000'),
+  };
+  const winds = {
+    250:  forecastMedian(nightHrs, 'wind250'),
+    500:  forecastMedian(nightHrs, 'wind500'),
+    850:  forecastMedian(nightHrs, 'wind850'),
+    1000: forecastMedian(nightHrs, 'wind1000'),
+  };
+  const dirs = {
+    250:  forecastMedian(nightHrs, 'wdir250'),
+    500:  forecastMedian(nightHrs, 'wdir500'),
+    850:  forecastMedian(nightHrs, 'wdir850'),
+    1000: forecastMedian(nightHrs, 'wdir1000'),
+  };
+  const heights = {
+    250:  forecastMedian(nightHrs, 'z250'),
+    500:  forecastMedian(nightHrs, 'z500'),
+    850:  forecastMedian(nightHrs, 'z850'),
+    1000: forecastMedian(nightHrs, 'z1000'),
+  };
 
-  const score = _weightedScore([
-    { score: _scoreJetWind(jet),          weight: 0.50 },
-    { score: _scoreMidWind(mid),          weight: 0.15 },
-    { score: _scoreLapseRate(t850, t500), weight: 0.20 },
-    { score: _scoreSurfaceWind(sfc),      weight: 0.15 },
-  ]);
+  const pairs = [
+    { name: 'upper',    lo: 500,  hi: 250  },
+    { name: 'mid',      lo: 850,  hi: 500  },
+    { name: 'boundary', lo: 1000, hi: 850  },
+  ];
 
-  const bucket = _scoreBucket(score);
-  const hasUpperAir = jet != null || mid != null || (t850 != null && t500 != null);
+  const riByLayer = pairs.map(p => ({
+    name: p.name,
+    ri:   _bulkRichardson({
+      tLo: temps[p.lo],   tHi: temps[p.hi],
+      wLo: winds[p.lo],   wHi: winds[p.hi],
+      dLo: dirs[p.lo],    dHi: dirs[p.hi],
+      zLo: heights[p.lo], zHi: heights[p.hi],
+      pLo: p.lo,          pHi: p.hi,
+    }),
+  }));
 
-  let text;
-  if (score == null) {
-    text = 'No data';
-  } else if (jet != null) {
-    const kt = Math.round(jet / 1.852);
-    text = `Jet stream ${kt} kt`;
-  } else if (sfc != null) {
-    const ms = (sfc / 3.6).toFixed(1);
-    text = `Surface wind ${ms} m/s · surface-only`;
-  } else {
-    text = 'Limited data';
+  const haveRi = riByLayer.some(r => r.ri != null);
+
+  if (haveRi) {
+    const validRi = riByLayer.filter(r => r.ri != null);
+    const minRi   = Math.min(...validRi.map(r => r.ri));
+    const turb    = validRi.filter(r => r.ri < 0.25).map(r => r.name);
+    const bucket  = _riBucket(minRi);
+    const riLabel = !isFinite(minRi) ? '∞' : minRi.toFixed(2);
+    const tail    = turb.length ? `turbulent: ${turb.join(', ')}` : 'all layers stable';
+    return {
+      ...bucket,
+      text:        `Min Ri ${riLabel} · ${tail}`,
+      score:       minRi,
+      hasUpperAir: true,
+    };
   }
-  return { ...bucket, text, score, hasUpperAir };
+
+  // Surface-only fallback — preserved so locations outside the HRDPS
+  // domain (or during an HRDPS outage) still get a usable Seeing badge
+  // rather than "No data".
+  const sfc = forecastMedian(nightHrs, 'wspd');
+  const score = _weightedScore([
+    { score: _scoreSurfaceWind(sfc), weight: 1.0 },
+  ]);
+  const bucket = _scoreBucket(score);
+  const text = sfc != null
+    ? `Surface wind ${(sfc / 3.6).toFixed(1)} m/s · surface-only`
+    : (score == null ? 'No data' : 'Limited data');
+  return { ...bucket, text, score, hasUpperAir: false };
 }
 
 function computeTransparency(nightHrs) {
