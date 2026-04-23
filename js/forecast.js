@@ -241,6 +241,32 @@ function _uvFrom(speedKmh, dirDeg) {
   return { u: -ms * Math.sin(rad), v: -ms * Math.cos(rad) };
 }
 
+// Bulk Richardson number for a layer between two pressure levels.
+// Ri = (g · Δθ · Δz) / (θ̄ · ΔU²)
+// Equivalent: (g/θ̄)·(Δθ/Δz) / (ΔU/Δz)² — buoyancy gradient over
+// squared shear gradient. Ri > 0.25 ⇒ dynamically stable (laminar),
+// Ri < 0.25 ⇒ shear overcomes buoyancy and the layer generates
+// turbulence (Miles-Howard theorem). Returns null if any input is
+// missing, +Infinity for effectively zero shear.
+function _bulkRichardson({ tLo, tHi, wLo, wHi, dLo, dHi, zLo, zHi, pLo, pHi }) {
+  if (tLo == null || tHi == null || zLo == null || zHi == null) return null;
+  const thLo = _potentialTemp(tLo, pLo);
+  const thHi = _potentialTemp(tHi, pHi);
+  const vLo  = _uvFrom(wLo, dLo);
+  const vHi  = _uvFrom(wHi, dHi);
+  if (thLo == null || thHi == null || vLo == null || vHi == null) return null;
+  const dz    = zHi - zLo;                                // m (higher level has larger z)
+  if (dz <= 0) return null;
+  const du    = vHi.u - vLo.u;
+  const dv    = vHi.v - vLo.v;
+  const dU    = Math.sqrt(du * du + dv * dv);             // m/s
+  const dTh   = thHi - thLo;                              // K (positive when stably stratified)
+  const thBar = 0.5 * (thLo + thHi);                      // K
+  const G     = 9.80665;                                  // m/s²
+  if (dU < 1e-2) return Infinity;                         // laminar flow
+  return (G * dTh * dz) / (thBar * dU * dU);
+}
+
 function _weightedScore(entries) {
   const valid = entries.filter(e => e.score != null);
   if (!valid.length) return null;
