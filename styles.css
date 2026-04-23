@@ -364,7 +364,7 @@ h1 {
 .fc-canvas-wrap { position: relative; }
 .fc-canvas { width: 100%; border-radius: 8px; display: block; }
 .fc-layers-card { background: var(--surface); border: 1px solid rgba(201,168,76,0.15); border-radius: 14px; overflow: hidden; margin-bottom: 14px; padding: 18px 20px; }
-.fc-cond-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 14px; }
+.fc-cond-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-top: 14px; }
 .fc-cond-box {
   background: rgba(255,255,255,0.03); border: 1px solid rgba(201,168,76,0.1);
   border-radius: 10px; padding: 12px 8px; text-align: center;

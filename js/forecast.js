@@ -4,39 +4,82 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 
+// Surface-level variables used by every model path.
+const _SURFACE_VARS = [
+  'cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high',
+  'temperature_2m','relative_humidity_2m','wind_speed_10m',
+  'dew_point_2m','precipitation_probability',
+];
+// Upper-air variables needed for seeing/transparency scoring. HRDPS only.
+const _UPPER_AIR_VARS = [
+  'wind_speed_250hPa','wind_speed_500hPa','wind_speed_850hPa',
+  'temperature_500hPa','temperature_850hPa',
+  'relative_humidity_500hPa','cape',
+];
+
 async function fetchForecast(lat, lon) {
-  const vars = [
-    'cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high',
-    'temperature_2m','relative_humidity_2m','wind_speed_10m',
-    'dew_point_2m','precipitation_probability',
-  ].join(',');
-
-  const url = `https://api.open-meteo.com/v1/forecast`
+  const base = `https://api.open-meteo.com/v1/forecast`
     + `?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}`
-    + `&hourly=${vars}&models=gem_seamless&forecast_days=3&timezone=auto`;
+    + `&forecast_days=3&timezone=auto`;
 
-  const resp = await fetch(url);
+  // Try HRDPS first — 2.5 km Canadian high-res model, gives us pressure-level data
+  // for a proper Clear-Sky-Chart-style seeing score.
+  try {
+    const vars = [..._SURFACE_VARS, ..._UPPER_AIR_VARS].join(',');
+    const resp = await fetch(`${base}&hourly=${vars}&models=gem_hrdps_continental`);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.hourly && data.hourly.time && _hasPressureData(data.hourly)) {
+        data._model    = 'HRDPS (2.5 km)';
+        data._highRes  = true;
+        return data;
+      }
+    }
+  } catch (e) {
+    // network/parse error — fall through to global fallback
+  }
+
+  // Fallback: GEM seamless (global). No pressure-level data — seeing/transparency
+  // will degrade to a surface-only estimate.
+  const resp = await fetch(`${base}&hourly=${_SURFACE_VARS.join(',')}&models=gem_seamless`);
   if (!resp.ok) throw new Error(`Open-Meteo returned HTTP ${resp.status}`);
   const data = await resp.json();
   if (!data.hourly || !data.hourly.time) throw new Error('Unexpected response from Open-Meteo.');
+  data._model   = 'GEM Seamless';
+  data._highRes = false;
   return data;
+}
+
+function _hasPressureData(hourly) {
+  const jet = hourly.wind_speed_250hPa;
+  return Array.isArray(jet) && jet.some(v => v !== null && v !== undefined);
 }
 
 function parseForecast(data) {
   const h = data.hourly;
+  const get = (key, i) => (h[key] ? h[key][i] : null);
   return h.time.map((t, i) => ({
     time:        new Date(t),
     localHour:   parseInt(t.slice(11, 13), 10),
     localDate:   t.slice(0, 10),
-    tcdc:        h.cloud_cover[i],
-    lcdc:        h.cloud_cover_low[i],
-    mcdc:        h.cloud_cover_mid[i],
-    hcdc:        h.cloud_cover_high[i],
-    tmp:         h.temperature_2m[i],
-    dewp:        h.dew_point_2m ? h.dew_point_2m[i] : null,
-    rh:          h.relative_humidity_2m[i],
-    wspd:        h.wind_speed_10m[i],
-    precip_prob: h.precipitation_probability[i],
+    tcdc:        get('cloud_cover', i),
+    lcdc:        get('cloud_cover_low', i),
+    mcdc:        get('cloud_cover_mid', i),
+    hcdc:        get('cloud_cover_high', i),
+    tmp:         get('temperature_2m', i),
+    dewp:        get('dew_point_2m', i),
+    rh:          get('relative_humidity_2m', i),
+    wspd:        get('wind_speed_10m', i),
+    precip_prob: get('precipitation_probability', i),
+    // HRDPS pressure-level fields — null when in fallback mode.
+    // Winds in km/h, temperatures in °C, RH in %.
+    wind250:     get('wind_speed_250hPa', i),
+    wind500:     get('wind_speed_500hPa', i),
+    wind850:     get('wind_speed_850hPa', i),
+    temp500:     get('temperature_500hPa', i),
+    temp850:     get('temperature_850hPa', i),
+    rh500:       get('relative_humidity_500hPa', i),
+    cape:        get('cape', i),
   }));
 }
 
@@ -80,13 +123,158 @@ function getOutlook(nightHours) {
   return               { icon:'☁️', label:'Overcast',       sub:'Cloud cover will prevent observing tonight', cls:'cloudy'       };
 }
 
-function getSeeingRating(wspd_kmh) {
-  if (wspd_kmh === null || wspd_kmh === undefined) return { label:'Unknown', cls:'warn', text:'No wind data' };
-  const w = parseFloat(wspd_kmh) / 3.6;
-  if (w < 2) return { label:'Excellent', cls:'good', text:`${w.toFixed(1)} m/s — very steady air`   };
-  if (w < 5) return { label:'Good',      cls:'good', text:`${w.toFixed(1)} m/s — calm conditions`   };
-  if (w < 9) return { label:'Fair',      cls:'warn', text:`${w.toFixed(1)} m/s — some turbulence`   };
-  return           { label:'Poor',      cls:'poor', text:`${w.toFixed(1)} m/s — turbulent air`      };
+// ── Atmospheric stability scoring ───────────────────────────────────────
+// Clear-Sky-Chart-style weighting (Rahill/CMC convention):
+//   Seeing       = 50% jet stream (250hPa) + 15% mid wind (500hPa)
+//                + 20% lapse rate (850-500hPa) + 15% surface wind
+//   Transparency = 40% mid-atmos RH (500hPa) + 35% low/mid cloud
+//                + 25% surface dew-point spread
+// All scores on a 0-100 scale (higher = better). Null inputs are skipped
+// via _weightedScore so the model degrades gracefully when HRDPS is
+// unavailable and only surface data is present.
+
+function _scoreJetWind(kmh) {
+  if (kmh == null) return null;
+  // Thresholds in knots: <20 excellent, <30 good, <50 avg, <80 poor, else very poor.
+  if (kmh < 37)  return 100;  // <20 kt
+  if (kmh < 56)  return 80;   // <30 kt
+  if (kmh < 93)  return 60;   // <50 kt
+  if (kmh < 148) return 40;   // <80 kt
+  return 20;
+}
+
+function _scoreMidWind(kmh) {
+  if (kmh == null) return null;
+  if (kmh < 30) return 100;
+  if (kmh < 55) return 75;
+  if (kmh < 80) return 50;
+  return 25;
+}
+
+function _scoreLapseRate(t850, t500) {
+  if (t850 == null || t500 == null) return null;
+  // Altitude delta 850hPa→500hPa ≈ 4.1 km. Standard atmos = 6.5°C/km, dry
+  // adiabatic = 9.8°C/km. Steeper lapse = more convective turbulence aloft.
+  const lapse = (t850 - t500) / 4.1;
+  if (lapse < 5) return 100;
+  if (lapse < 7) return 70;
+  if (lapse < 9) return 40;
+  return 20;
+}
+
+function _scoreSurfaceWind(kmh) {
+  if (kmh == null) return null;
+  if (kmh < 11) return 100;  // <3 m/s
+  if (kmh < 18) return 80;   // <5 m/s
+  if (kmh < 29) return 50;   // <8 m/s
+  return 30;
+}
+
+function _scoreMidRH(pct) {
+  if (pct == null) return null;
+  if (pct < 30) return 100;
+  if (pct < 50) return 80;
+  if (pct < 70) return 50;
+  if (pct < 90) return 25;
+  return 10;
+}
+
+function _scoreCloud(lowMidPct) {
+  if (lowMidPct == null) return null;
+  if (lowMidPct < 20) return 100;
+  if (lowMidPct < 40) return 75;
+  if (lowMidPct < 60) return 50;
+  if (lowMidPct < 80) return 30;
+  return 10;
+}
+
+function _scoreDewSpread(deltaC) {
+  if (deltaC == null) return null;
+  if (deltaC > 10) return 100;
+  if (deltaC > 5)  return 75;
+  if (deltaC > 3)  return 50;
+  if (deltaC > 1)  return 30;
+  return 10;
+}
+
+function _weightedScore(entries) {
+  const valid = entries.filter(e => e.score != null);
+  if (!valid.length) return null;
+  const totalW = valid.reduce((s, e) => s + e.weight, 0);
+  return valid.reduce((s, e) => s + e.score * e.weight, 0) / totalW;
+}
+
+function _scoreBucket(score) {
+  if (score == null)   return { label:'Unknown',   cls:'warn' };
+  if (score >= 85)     return { label:'Excellent', cls:'good' };
+  if (score >= 70)     return { label:'Good',      cls:'good' };
+  if (score >= 50)     return { label:'Fair',      cls:'warn' };
+  if (score >= 30)     return { label:'Poor',      cls:'poor' };
+  return                    { label:'Very Poor', cls:'poor' };
+}
+
+function computeSeeing(nightHrs) {
+  const jet   = forecastMedian(nightHrs, 'wind250');
+  const mid   = forecastMedian(nightHrs, 'wind500');
+  const t850  = forecastMedian(nightHrs, 'temp850');
+  const t500  = forecastMedian(nightHrs, 'temp500');
+  const sfc   = forecastMedian(nightHrs, 'wspd');
+
+  const score = _weightedScore([
+    { score: _scoreJetWind(jet),          weight: 0.50 },
+    { score: _scoreMidWind(mid),          weight: 0.15 },
+    { score: _scoreLapseRate(t850, t500), weight: 0.20 },
+    { score: _scoreSurfaceWind(sfc),      weight: 0.15 },
+  ]);
+
+  const bucket = _scoreBucket(score);
+  const hasUpperAir = jet != null || mid != null || (t850 != null && t500 != null);
+
+  let text;
+  if (score == null) {
+    text = 'No data';
+  } else if (jet != null) {
+    const kt = Math.round(jet / 1.852);
+    text = `Jet stream ${kt} kt`;
+  } else if (sfc != null) {
+    const ms = (sfc / 3.6).toFixed(1);
+    text = `Surface wind ${ms} m/s · surface-only`;
+  } else {
+    text = 'Limited data';
+  }
+  return { ...bucket, text, score, hasUpperAir };
+}
+
+function computeTransparency(nightHrs) {
+  const rh500  = forecastMedian(nightHrs, 'rh500');
+  const lowCld = forecastMedian(nightHrs, 'lcdc');
+  const midCld = forecastMedian(nightHrs, 'mcdc');
+  const lowMid = (lowCld != null || midCld != null)
+    ? Math.max(lowCld ?? 0, midCld ?? 0)
+    : null;
+  const tmp    = forecastMedian(nightHrs, 'tmp');
+  const dewp   = forecastMedian(nightHrs, 'dewp');
+  const spread = (tmp != null && dewp != null) ? (tmp - dewp) : null;
+
+  const score = _weightedScore([
+    { score: _scoreMidRH(rh500),      weight: 0.40 },
+    { score: _scoreCloud(lowMid),     weight: 0.35 },
+    { score: _scoreDewSpread(spread), weight: 0.25 },
+  ]);
+
+  const bucket = _scoreBucket(score);
+
+  let text;
+  if (score == null) {
+    text = 'No data';
+  } else if (rh500 != null) {
+    text = `Mid-atmos RH ${Math.round(rh500)}%`;
+  } else if (spread != null) {
+    text = `Dew spread ${spread.toFixed(1)}°C · surface-only`;
+  } else {
+    text = 'Limited data';
+  }
+  return { ...bucket, text, score, hasUpperAir: rh500 != null };
 }
 
 function getDewRisk(rh) {
@@ -405,8 +593,8 @@ function buildOutlookHTML(outlook, medians, tzLabel) {
     </div>`;
 }
 
-/** Builds the "Astronomy Conditions" (seeing / dew / precip) card HTML. */
-function buildAstroConditionsHTML(seeing, dew, precipMed) {
+/** Builds the "Astronomy Conditions" card HTML — seeing, transparency, dew, precip. */
+function buildAstroConditionsHTML(seeing, transparency, dew, precipMed) {
   const precipCls = (precipMed ?? 0) < 20 ? 'good' : (precipMed ?? 0) < 50 ? 'warn' : 'poor';
   const precipLbl = (precipMed ?? 0) < 20 ? 'Low'  : (precipMed ?? 0) < 50 ? 'Moderate' : 'High';
 
@@ -419,6 +607,12 @@ function buildAstroConditionsHTML(seeing, dew, precipMed) {
           <div class="fc-cond-label">Seeing</div>
           <div class="fc-cond-value">${seeing.text}</div>
           <div class="fc-cond-rating ${seeing.cls}">${seeing.label}</div>
+        </div>
+        <div class="fc-cond-box">
+          <div class="fc-cond-icon">🔭</div>
+          <div class="fc-cond-label">Transparency</div>
+          <div class="fc-cond-value">${transparency.text}</div>
+          <div class="fc-cond-rating ${transparency.cls}">${transparency.label}</div>
         </div>
         <div class="fc-cond-box">
           <div class="fc-cond-icon">💧</div>
@@ -498,7 +692,7 @@ function renderForecast() {
   fetchForecast(State.obsLat, State.obsLon)
     .then(data => {
       const allHours  = parseForecast(data);
-      const modelName = data.model || 'gem_seamless';
+      const modelName = data._model || 'gem_seamless';
       const nightHrs  = getForecastNightHours(allHours);
       const tmrwHrs   = getTomorrowNightHours(allHours);
 
@@ -521,10 +715,11 @@ function renderForecast() {
       };
       const precipMed = forecastMedian(nightHrs, 'precip_prob');
 
-      const outlook     = getOutlook(nightHrs);
-      const tmrwOutlook = getOutlook(tmrwHrs);
-      const seeing      = getSeeingRating(medians.wspd);
-      const dew         = getDewRisk(medians.rh);
+      const outlook      = getOutlook(nightHrs);
+      const tmrwOutlook  = getOutlook(tmrwHrs);
+      const seeing       = computeSeeing(nightHrs);
+      const transparency = computeTransparency(nightHrs);
+      const dew          = getDewRisk(medians.rh);
 
       // Current hour — data point closest to right now
       const nowMs     = Date.now();
@@ -544,7 +739,7 @@ function renderForecast() {
           <div class="fc-chart-header"><span>☁️</span><h3>Hourly Cloud Cover — Tonight</h3></div>
           <div class="fc-chart-body"><div class="fc-canvas-wrap"><canvas id="cloudCanvas" class="fc-canvas"></canvas></div></div>
         </div>`                                    +
-        buildAstroConditionsHTML(seeing, dew, precipMed) +
+        buildAstroConditionsHTML(seeing, transparency, dew, precipMed) +
         buildTempDewCardHTML()                     +
         buildTomorrowCardHTML(tmrwOutlook, tmrwHrs)+
         `<p class="fc-footer">Location: ${locStr} · Model: ${modelName} via Open-Meteo</p>`;

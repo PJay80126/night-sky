@@ -20,7 +20,7 @@ Requires browser geolocation permission for accurate astronomy calculations.
 ```
 index.html              # Markup — 6 tabs: Moon, Map, Planets, Events, Messier, Forecast
 styles.css              # All CSS (~40KB), dark theme, CSS custom properties
-sw.js                   # Service worker — cache-first, version tagged (e.g. night-sky-v42)
+sw.js                   # Service worker — cache-first, version tagged (e.g. night-sky-v43)
 manifest.json           # PWA manifest
 astronomy.browser.js    # Bundled Astronomy.js library (Don Cross) — do not modify
 js/
@@ -52,6 +52,9 @@ icons/                  # PWA icons (192, 512)
 - **Mobile viewport**: `body` uses `min-height: 100dvh` (with `100vh` fallback) so the layout tracks the mobile browser's dynamic viewport as the URL bar shows/hides. This is required to keep the fixed-position `.tab-bar` flush against the visible bottom on first paint. Do not switch back to plain `100vh` — the tab bar rendered "half-height" on first load before this fix.
 - **Catalogue data**: Embedded as `const` arrays/objects (PHOTO_DATA, MESSIER, METEOR_SHOWERS, etc.) — not fetched
 - **Weather**: Open-Meteo API — free, no auth, returns JSON directly
+- **Forecast model selection**: `fetchForecast()` tries `gem_hrdps_continental` first (2.5 km Canadian high-res, the same model Astrospheric uses) with pressure-level variables at 250/500/850 hPa. If the response lacks jet-stream data (`_hasPressureData()` returns false — happens outside the HRDPS domain or on model outage), it falls back to `gem_seamless` with surface variables only. The chosen model is stamped on the data as `_model` and surfaced in the forecast footer. Open-Meteo defaults all wind speeds to km/h across both surface and pressure levels — scoring helpers consume km/h directly rather than converting to m/s at the boundary.
+- **Seeing / Transparency scoring**: Clear-Sky-Chart (Rahill/CMC) convention. `computeSeeing()` weights jet stream (250 hPa) 50%, mid wind (500 hPa) 15%, 850→500 hPa lapse rate 20%, surface wind 15%. `computeTransparency()` weights mid-atmos RH (500 hPa) 40%, max(low, mid) cloud 35%, surface dew-point spread 25%. Score buckets: ≥85 Excellent · ≥70 Good · ≥50 Fair · ≥30 Poor · else Very Poor. The lapse-rate calc assumes 850→500 hPa altitude delta ≈ 4.1 km (standard atmosphere) — not exact but within tolerance for the coarse bucketing. Badges use nightly medians over the 18:00–06:00 window to stay consistent with the existing dew/precip badges.
+- **Graceful scoring fallback**: `_weightedScore()` filters null factors and renormalizes over the remaining weights, so the same code path produces a usable score whether HRDPS pressure-level data is present or not. In fallback mode the Seeing badge is driven entirely by surface wind and the Transparency badge by cloud + dew spread — the badge subtext shows "surface-only" so the user knows the estimate is coarse. Keep this behaviour: never throw or show "Unknown" just because pressure-level data is missing.
 
 ### CSS Custom Properties (design tokens)
 ```css
@@ -63,7 +66,7 @@ icons/                  # PWA icons (192, 512)
 ```
 
 ## Service Worker
-Cache version is hardcoded in `sw.js` as `CACHE = 'night-sky-v42'`. **Bump the version number whenever assets change** to force cache invalidation for existing installs. The assets list at the top of `sw.js` must include any new files added to the project.
+Cache version is hardcoded in `sw.js` as `CACHE = 'night-sky-v43'`. **Bump the version number whenever assets change** to force cache invalidation for existing installs. The assets list at the top of `sw.js` must include any new files added to the project.
 
 The fetch handler uses cache-first strategy: cached response wins; network is fallback only.
 
