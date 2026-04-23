@@ -214,6 +214,18 @@ function _scoreDewSpread(deltaC) {
   return 10;
 }
 
+// ── Richardson-Number seeing helpers ───────────────────────────────────
+// Potential temperature θ = T·(P0/P)^(R/cp). P0 = 1000 hPa, R/cp = 2/7
+// for dry air. Input in °C, output in Kelvin. θ removes the adiabatic
+// cooling a lifted parcel gets purely from expansion, so dθ/dz measures
+// real static stability — unlike raw dT/dz, which looks unstable
+// everywhere because T always drops with altitude.
+function _potentialTemp(tC, pHpa) {
+  if (tC == null || pHpa == null) return null;
+  const tK = tC + 273.15;
+  return tK * Math.pow(1000 / pHpa, 2 / 7);
+}
+
 function _weightedScore(entries) {
   const valid = entries.filter(e => e.score != null);
   if (!valid.length) return null;
