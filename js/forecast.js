@@ -141,43 +141,12 @@ function getOutlook(nightHours) {
 }
 
 // ── Atmospheric stability scoring ───────────────────────────────────────
-// Clear-Sky-Chart-style weighting (Rahill/CMC convention):
-//   Seeing       = 50% jet stream (250hPa) + 15% mid wind (500hPa)
-//                + 20% lapse rate (850-500hPa) + 15% surface wind
-//   Transparency = 40% mid-atmos RH (500hPa) + 35% low/mid cloud
-//                + 25% surface dew-point spread
-// All scores on a 0-100 scale (higher = better). Null inputs are skipped
-// via _weightedScore so the model degrades gracefully when HRDPS is
-// unavailable and only surface data is present.
-
-function _scoreJetWind(kmh) {
-  if (kmh == null) return null;
-  // Thresholds in knots: <20 excellent, <30 good, <50 avg, <80 poor, else very poor.
-  if (kmh < 37)  return 100;  // <20 kt
-  if (kmh < 56)  return 80;   // <30 kt
-  if (kmh < 93)  return 60;   // <50 kt
-  if (kmh < 148) return 40;   // <80 kt
-  return 20;
-}
-
-function _scoreMidWind(kmh) {
-  if (kmh == null) return null;
-  if (kmh < 30) return 100;
-  if (kmh < 55) return 75;
-  if (kmh < 80) return 50;
-  return 25;
-}
-
-function _scoreLapseRate(t850, t500) {
-  if (t850 == null || t500 == null) return null;
-  // Altitude delta 850hPa→500hPa ≈ 4.1 km. Standard atmos = 6.5°C/km, dry
-  // adiabatic = 9.8°C/km. Steeper lapse = more convective turbulence aloft.
-  const lapse = (t850 - t500) / 4.1;
-  if (lapse < 5) return 100;
-  if (lapse < 7) return 70;
-  if (lapse < 9) return 40;
-  return 20;
-}
+// Seeing: bulk Richardson per HRDPS layer pair (see _bulkRichardson +
+//   computeSeeing). Surface wind is the HRDPS-unavailable fallback.
+// Transparency: Clear-Sky-Chart weighting (Rahill/CMC) = 40% mid-atmos
+//   RH (500 hPa) + 35% low/mid cloud + 25% surface dew-point spread.
+// Transparency scores use the 0-100 convention with _weightedScore so
+// the model degrades gracefully when any factor is missing.
 
 function _scoreSurfaceWind(kmh) {
   if (kmh == null) return null;
