@@ -226,6 +226,21 @@ function _potentialTemp(tC, pHpa) {
   return tK * Math.pow(1000 / pHpa, 2 / 7);
 }
 
+// Wind (speed in km/h, meteorological direction in degrees — the
+// direction wind blows *from*) to u,v components in m/s. Convention:
+// u is east-positive, v is north-positive. The Ri shear term needs
+// the vector magnitude of the wind *difference* between two layers,
+// not the scalar speed difference, because wind direction rotates
+// with altitude and scalar differences under-count the real shear.
+function _uvFrom(speedKmh, dirDeg) {
+  if (speedKmh == null || dirDeg == null) return null;
+  const ms  = speedKmh / 3.6;
+  const rad = dirDeg * Math.PI / 180;
+  // "From" direction: a wind *from* the north blows *toward* the south,
+  // so the vector points opposite to the compass bearing.
+  return { u: -ms * Math.sin(rad), v: -ms * Math.cos(rad) };
+}
+
 function _weightedScore(entries) {
   const valid = entries.filter(e => e.score != null);
   if (!valid.length) return null;
