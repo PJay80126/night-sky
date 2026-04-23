@@ -267,6 +267,19 @@ function _bulkRichardson({ tLo, tHi, wLo, wHi, dLo, dHi, zLo, zHi, pLo, pHi }) {
   return (G * dTh * dz) / (thBar * dU * dU);
 }
 
+// Map minimum Ri across the column to the Astronomy Conditions badge.
+// 0.25 = Miles-Howard critical threshold (not tunable — it's the
+// proven dynamic stability boundary). 1.0, 0.5, 0.1 are tunable knobs
+// (see CLAUDE.md "Seeing / Richardson-Number tunables").
+function _riBucket(minRi) {
+  if (minRi == null)         return { label:'Unknown',   cls:'warn' };
+  if (minRi >= 1.0)          return { label:'Excellent', cls:'good' };
+  if (minRi >= 0.5)          return { label:'Good',      cls:'good' };
+  if (minRi >= 0.25)         return { label:'Fair',      cls:'warn' };
+  if (minRi >= 0.1)          return { label:'Poor',      cls:'poor' };
+  return                            { label:'Very Poor', cls:'poor' };
+}
+
 function _weightedScore(entries) {
   const valid = entries.filter(e => e.score != null);
   if (!valid.length) return null;
