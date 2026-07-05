@@ -3,9 +3,11 @@
 function switchTab(name) {
   State.activeTab = name;
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
   document.getElementById('panel-' + name).classList.add('active');
-  document.getElementById('tab-'   + name).classList.add('active');
+  const activeBtn = document.getElementById('tab-' + name);
+  activeBtn.classList.add('active');
+  activeBtn.setAttribute('aria-selected', 'true');
 
   // Move indicator bar
   const btn       = document.getElementById('tab-' + name);
@@ -44,6 +46,18 @@ function switchTab(name) {
     requestAnimationFrame(() => drawAltitudeGraph(State.altDatasets, State.altSteps, State.altHStart, State.altHEnd));
   }
 }
+
+// Arrow-key navigation across the tablist (Left/Right, wrapping)
+document.getElementById('tabBar').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const tabs = [...document.querySelectorAll('.tab-btn')];
+  const idx  = tabs.findIndex(t => t === document.activeElement);
+  if (idx === -1) return;
+  e.preventDefault();
+  const next = tabs[(idx + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+  next.focus();
+  next.click();
+});
 
 // Initialise tab indicator position after page load
 window.addEventListener('load', () => {

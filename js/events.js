@@ -161,8 +161,9 @@ function computeSkyEvents() {
 
 function filterEvents(filter, chipEl) {
   _activeFilter = filter;
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#eventsFilter .filter-chip').forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
   chipEl.classList.add('active');
+  chipEl.setAttribute('aria-pressed', 'true');
   renderEventsList();
   if (State.obsLat !== null && State.obsLon !== null) {
     requestAnimationFrame(() => enrichEventsWithVisibility());

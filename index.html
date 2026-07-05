@@ -27,29 +27,29 @@
 <div class="container">
 
   <!-- ── Tab bar ──────────────────────────────────────────────────────── -->
-  <div class="tab-bar" id="tabBar">
+  <div class="tab-bar" id="tabBar" role="tablist" aria-label="App sections">
     <div class="tab-indicator" id="tabIndicator"></div>
-    <button class="tab-btn active" id="tab-moon"     onclick="switchTab('moon')">
+    <button class="tab-btn active" id="tab-moon"     role="tab" aria-selected="true"  aria-controls="panel-moon"     onclick="switchTab('moon')">
       <span class="tab-icon">🌙</span>
       <span class="tab-label">Moon</span>
     </button>
-    <button class="tab-btn"        id="tab-moonmap"  onclick="switchTab('moonmap')">
+    <button class="tab-btn"        id="tab-moonmap"  role="tab" aria-selected="false" aria-controls="panel-moonmap"  onclick="switchTab('moonmap')">
       <span class="tab-icon">🗺</span>
       <span class="tab-label">Map</span>
     </button>
-    <button class="tab-btn"        id="tab-planets"  onclick="switchTab('planets')">
+    <button class="tab-btn"        id="tab-planets"  role="tab" aria-selected="false" aria-controls="panel-planets"  onclick="switchTab('planets')">
       <span class="tab-icon">🪐</span>
       <span class="tab-label">Planets</span>
     </button>
-    <button class="tab-btn"        id="tab-events"   onclick="switchTab('events')">
+    <button class="tab-btn"        id="tab-events"   role="tab" aria-selected="false" aria-controls="panel-events"   onclick="switchTab('events')">
       <span class="tab-icon">✨</span>
       <span class="tab-label">Events</span>
     </button>
-    <button class="tab-btn"        id="tab-messier"  onclick="switchTab('messier')">
+    <button class="tab-btn"        id="tab-messier"  role="tab" aria-selected="false" aria-controls="panel-messier"  onclick="switchTab('messier')">
       <span class="tab-icon">🔭</span>
       <span class="tab-label">Messier</span>
     </button>
-    <button class="tab-btn"        id="tab-forecast" onclick="switchTab('forecast')">
+    <button class="tab-btn"        id="tab-forecast" role="tab" aria-selected="false" aria-controls="panel-forecast" onclick="switchTab('forecast')">
       <span class="tab-icon">🌤</span>
       <span class="tab-label">Forecast</span>
     </button>
@@ -57,7 +57,7 @@
 
 
   <!-- ── Moon tab ─────────────────────────────────────────────────────── -->
-  <div class="tab-panel active" id="panel-moon">
+  <div class="tab-panel active" id="panel-moon" role="tabpanel" aria-labelledby="tab-moon">
 
       <div class="moon-header">
         <svg class="moon-svg" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -153,7 +153,7 @@
 
 
   <!-- ── Moon Map tab ─────────────────────────────────────────────────── -->
-  <div class="tab-panel" id="panel-moonmap">
+  <div class="tab-panel" id="panel-moonmap" role="tabpanel" aria-labelledby="tab-moonmap">
     <div id="moonMapView">
       <div id="mapContainer">
         <canvas id="moonGlCanvas"></canvas>
@@ -179,7 +179,7 @@
 
 
   <!-- ── Planets tab ──────────────────────────────────────────────────── -->
-  <div class="tab-panel" id="panel-planets">
+  <div class="tab-panel" id="panel-planets" role="tabpanel" aria-labelledby="tab-planets">
 
     <div class="section-card" id="planetsCard">
       <div class="section-header">
@@ -195,7 +195,7 @@
 
 
   <!-- ── Events tab ───────────────────────────────────────────────────── -->
-  <div class="tab-panel" id="panel-events">
+  <div class="tab-panel" id="panel-events" role="tabpanel" aria-labelledby="tab-events">
 
     <div class="moon-header tab-page-header">
       <div class="tab-page-icon">✨</div>
@@ -204,11 +204,11 @@
     </div>
 
     <div class="events-filter" id="eventsFilter">
-      <button class="filter-chip active" data-filter="all"    onclick="filterEvents('all',this)">All</button>
-      <button class="filter-chip"        data-filter="planet" onclick="filterEvents('planet',this)">Planets</button>
-      <button class="filter-chip"        data-filter="lunar"  onclick="filterEvents('lunar',this)">Lunar</button>
-      <button class="filter-chip"        data-filter="meteor" onclick="filterEvents('meteor',this)">Meteor</button>
-      <button class="filter-chip"        data-filter="solar"  onclick="filterEvents('solar',this)">Solar</button>
+      <button class="filter-chip active" aria-pressed="true" data-filter="all"    onclick="filterEvents('all',this)">All</button>
+      <button class="filter-chip" aria-pressed="false"        data-filter="planet" onclick="filterEvents('planet',this)">Planets</button>
+      <button class="filter-chip" aria-pressed="false"        data-filter="lunar"  onclick="filterEvents('lunar',this)">Lunar</button>
+      <button class="filter-chip" aria-pressed="false"        data-filter="meteor" onclick="filterEvents('meteor',this)">Meteor</button>
+      <button class="filter-chip" aria-pressed="false"        data-filter="solar"  onclick="filterEvents('solar',this)">Solar</button>
     </div>
 
     <div id="eventsBody">
@@ -219,7 +219,7 @@
 
 
   <!-- ── Messier tab ──────────────────────────────────────────────────── -->
-  <div class="tab-panel" id="panel-messier">
+  <div class="tab-panel" id="panel-messier" role="tabpanel" aria-labelledby="tab-messier">
 
     <div class="moon-header tab-page-header">
       <div class="tab-page-icon">🔭</div>
@@ -249,11 +249,11 @@
     </div>
 
     <div class="events-filter" id="messierFilter">
-      <button class="filter-chip active" data-mfilter="all"     onclick="filterMessier('all',this)">All</button>
-      <button class="filter-chip"        data-mfilter="galaxy"  onclick="filterMessier('galaxy',this)">Galaxies</button>
-      <button class="filter-chip"        data-mfilter="nebula"  onclick="filterMessier('nebula',this)">Nebulae</button>
-      <button class="filter-chip"        data-mfilter="cluster" onclick="filterMessier('cluster',this)">Clusters</button>
-      <button class="filter-chip"        data-mfilter="other"   onclick="filterMessier('other',this)">Other</button>
+      <button class="filter-chip active" aria-pressed="true" data-mfilter="all"     onclick="filterMessier('all',this)">All</button>
+      <button class="filter-chip" aria-pressed="false"        data-mfilter="galaxy"  onclick="filterMessier('galaxy',this)">Galaxies</button>
+      <button class="filter-chip" aria-pressed="false"        data-mfilter="nebula"  onclick="filterMessier('nebula',this)">Nebulae</button>
+      <button class="filter-chip" aria-pressed="false"        data-mfilter="cluster" onclick="filterMessier('cluster',this)">Clusters</button>
+      <button class="filter-chip" aria-pressed="false"        data-mfilter="other"   onclick="filterMessier('other',this)">Other</button>
     </div>
 
     <div id="messierBody">
@@ -264,7 +264,7 @@
 
 
   <!-- ── Forecast tab ─────────────────────────────────────────────────── -->
-  <div class="tab-panel" id="panel-forecast">
+  <div class="tab-panel" id="panel-forecast" role="tabpanel" aria-labelledby="tab-forecast">
 
     <div class="moon-header tab-page-header">
       <div class="tab-page-icon forecast">🌤</div>

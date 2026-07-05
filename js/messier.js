@@ -512,8 +512,9 @@ function _renderMessierResults() {
 
 function filterMessier(filter, btn) {
   _messierFilter = filter;
-  document.querySelectorAll('#messierFilter .filter-chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#messierFilter .filter-chip').forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
   btn.classList.add('active');
+  btn.setAttribute('aria-pressed', 'true');
   if (_messierLoaded) _renderMessierResults();
 }
 
