@@ -100,18 +100,20 @@ function parseForecast(data) {
   }));
 }
 
+// "Tonight" is the real nautical-twilight window (sunset-side dusk through
+// sunrise-side dawn at -12° sun altitude), not a fixed 18:00-06:00 clock
+// window — see getTwilightWindow() in state.js. Falls back to the old
+// 18:00/06:00 default automatically at latitudes with no true nautical
+// dark (e.g. high-latitude summer).
 function getForecastNightHours(hours) {
   if (!hours.length) return [];
-  const nowH      = new Date().getHours();
-  const todayStr  = hours.find(h => h.localHour === nowH)?.localDate || hours[0].localDate;
-  const dates     = [...new Set(hours.map(h => h.localDate))].sort();
-  const todayIdx  = dates.indexOf(todayStr);
+  const nowH       = new Date().getHours();
+  const todayStr   = hours.find(h => h.localHour === nowH)?.localDate || hours[0].localDate;
+  const dates      = [...new Set(hours.map(h => h.localDate))].sort();
+  const todayIdx   = dates.indexOf(todayStr);
   const eveningStr = nowH < 6 ? (dates[todayIdx - 1] || dates[0]) : todayStr;
-  const morningStr = nowH < 6 ? todayStr : (dates[todayIdx + 1] || dates[dates.length - 1]);
-  return hours.filter(h =>
-    (h.localDate === eveningStr && h.localHour >= 18) ||
-    (h.localDate === morningStr && h.localHour <= 6)
-  );
+  const { nightStart, nightEnd } = getTwilightWindow(new Date(eveningStr + 'T12:00:00'), -12);
+  return hours.filter(h => h.time >= nightStart && h.time <= nightEnd);
 }
 
 function getTomorrowNightHours(hours) {
@@ -121,12 +123,9 @@ function getTomorrowNightHours(hours) {
   const todayStr   = hours.find(h => h.localHour === nowH)?.localDate || hours[0].localDate;
   const todayIdx   = dates.indexOf(todayStr);
   const eveningIdx = nowH < 6 ? todayIdx : todayIdx + 1;
-  const tmrwStr    = dates[eveningIdx]     || dates[dates.length - 1];
-  const dayAfterStr= dates[eveningIdx + 1] || dates[dates.length - 1];
-  return hours.filter(h =>
-    (h.localDate === tmrwStr      && h.localHour >= 18) ||
-    (h.localDate === dayAfterStr  && h.localHour <= 6)
-  );
+  const tmrwStr    = dates[eveningIdx] || dates[dates.length - 1];
+  const { nightStart, nightEnd } = getTwilightWindow(new Date(tmrwStr + 'T12:00:00'), -12);
+  return hours.filter(h => h.time >= nightStart && h.time <= nightEnd);
 }
 
 function getOutlook(nightHours) {
