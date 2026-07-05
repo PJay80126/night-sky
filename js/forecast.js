@@ -143,7 +143,10 @@ function getTomorrowNightHours(hours) {
 function getOutlook(nightHours) {
   if (!nightHours.length) return { icon:'❓', label:'No Data', sub:'Forecast unavailable', cls:'partly' };
 
-  const clouds = nightHours.map(h => h.tcdc ?? 0);
+  // Drop null cloud readings rather than counting them as 0% (clear) —
+  // missing data must not bias the badge optimistic.
+  const clouds = nightHours.map(h => h.tcdc).filter(v => v != null);
+  if (!clouds.length) return { icon:'❓', label:'No Data', sub:'Cloud forecast unavailable', cls:'partly' };
   const sorted = [...clouds].sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)];
 
