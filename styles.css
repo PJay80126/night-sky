@@ -357,6 +357,13 @@ h1 {
 .fc-stat-label { font-size: 0.72rem; font-family: 'Cinzel', serif; letter-spacing: 0.1em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
 .fc-stat-value { font-size: 1rem; color: var(--gold-light); font-family: 'Cinzel', serif; }
 .fc-stat-sub { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; font-style: italic; }
+.fc-info-btn { margin-left: auto; flex-shrink: 0; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; padding: 0; background: none; border: 1px solid rgba(201,168,76,0.35); border-radius: 50%; color: var(--gold); font-size: 0.85rem; line-height: 1; cursor: pointer; }
+.fc-info-btn:hover { background: rgba(201,168,76,0.12); }
+.fc-info-panel { border-top: 1px solid rgba(201,168,76,0.12); margin-top: 12px; padding-top: 12px; font-size: 0.8rem; line-height: 1.55; color: var(--text-dim); }
+.fc-info-panel p { margin: 0 0 8px; }
+.fc-info-panel p:last-child { margin-bottom: 0; }
+.fc-info-panel strong { color: var(--text); }
+.fc-outlook-card .fc-info-panel { margin-top: 0; padding: 12px 20px 16px; }
 .fc-chart-card { background: var(--surface); border: 1px solid rgba(201,168,76,0.15); border-radius: 14px; overflow: hidden; margin-bottom: 14px; }
 .fc-chart-header { background: var(--surface2); padding: 14px 20px; border-bottom: 1px solid rgba(201,168,76,0.12); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .fc-chart-header h3 { font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.1em; color: var(--gold-light); text-transform: uppercase; margin: 0; }

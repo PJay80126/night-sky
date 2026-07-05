@@ -653,6 +653,23 @@ function forecastMax(arr, key) {
   return vals.length ? Math.max(...vals) : null;
 }
 
+/** Toggles a stat-explainer panel and syncs aria-expanded on its ⓘ button. */
+function fcToggleInfo(id) {
+  const panel = document.getElementById(id);
+  if (!panel) return;
+  const open = panel.hasAttribute('hidden');
+  if (open) panel.removeAttribute('hidden'); else panel.setAttribute('hidden', '');
+  const btn = document.querySelector(`[aria-controls="${id}"]`);
+  if (btn) btn.setAttribute('aria-expanded', String(open));
+}
+
+/** Builds the ⓘ button that toggles the explainer panel with the given id. */
+function _fcInfoBtn(panelId) {
+  return `<button class="fc-info-btn" onclick="fcToggleInfo('${panelId}')"`
+       + ` aria-controls="${panelId}" aria-expanded="false"`
+       + ` aria-label="What do these stats mean?">ⓘ</button>`;
+}
+
 /** Builds the "Current Conditions" card HTML. */
 function buildCurrentConditionsHTML(currentHr) {
   const fmtTmp = v => v !== null && v !== undefined ? Math.round(v) + '°C' : '—';
@@ -722,12 +739,18 @@ function buildOutlookHTML(outlook, medians, tzLabel, nightHrs) {
           <div class="fc-outlook-value ${outlook.cls}">${outlook.label}</div>
           <div class="fc-outlook-sub">${outlook.sub}</div>
         </div>
+        ${_fcInfoBtn('outlookInfo')}
       </div>
       <div class="fc-stats-grid">
         <div class="fc-stat-box"><div class="fc-stat-label">Cloud</div><div class="fc-stat-value">${fmt1(medians.tcdc)}</div><div class="fc-stat-sub">median tonight</div></div>
         <div class="fc-stat-box"><div class="fc-stat-label">Temp</div><div class="fc-stat-value">${fmtT(medians.tmp)}</div><div class="fc-stat-sub">2 m above ground</div></div>
         <div class="fc-stat-box"><div class="fc-stat-label">Humidity</div><div class="fc-stat-value">${fmt1(medians.rh)}</div><div class="fc-stat-sub">relative humidity</div></div>
         <div class="fc-stat-box"><div class="fc-stat-label">Wind</div><div class="fc-stat-value">${fmtW(medians.wspd)}</div><div class="fc-stat-sub">10 m surface wind</div></div>
+      </div>
+      <div class="fc-info-panel" id="outlookInfo" hidden>
+        <p><strong>The badge</strong> is the median (typical-hour) cloud cover across tonight's dark window — the time range in the title, which runs from dusk to dawn at your location rather than a fixed clock window.</p>
+        <p><strong>Unsettled 🌦</strong> means rain is likely in at least one hour tonight even though reported cloud cover is low — don't trust the clear reading. <strong>Variable</strong> means the night splits into clear spells and cloudy stretches, so the median only tells half the story — check the hourly chart below.</p>
+        <p>The four boxes are median values across the same window.</p>
       </div>
     </div>`;
 }
@@ -739,7 +762,7 @@ function buildAstroConditionsHTML(seeing, transparency, dew, precipPeak) {
 
   return `
     <div class="fc-layers-card">
-      <div class="section-header"><span>✨</span><h2>Astronomy Conditions</h2></div>
+      <div class="section-header"><span>✨</span><h2>Astronomy Conditions</h2>${_fcInfoBtn('astroInfo')}</div>
       <div class="fc-cond-grid">
         <div class="fc-cond-box">
           <div class="fc-cond-icon">🌬</div>
@@ -765,6 +788,12 @@ function buildAstroConditionsHTML(seeing, transparency, dew, precipPeak) {
           <div class="fc-cond-value">${precipPeak !== null ? Math.round(precipPeak) + '%' : '—'} peak tonight</div>
           <div class="fc-cond-rating ${precipCls}">${precipLbl}</div>
         </div>
+      </div>
+      <div class="fc-info-panel" id="astroInfo" hidden>
+        <p><strong>Seeing</strong> — steadiness of the air, estimated from wind shear and temperature layering at four altitudes (the Richardson number; higher Ri = calmer air). Poor seeing blurs planets, the Moon, and double stars at high magnification even under a perfectly clear sky.</p>
+        <p><strong>Transparency</strong> — how clean and dark the sky is, from high-altitude moisture and haze. Poor transparency washes out faint galaxies and nebulae but barely affects bright targets.</p>
+        <p><strong>Dew Risk</strong> — from the smallest temperature/dew-point gap tonight, which usually occurs just before dawn. High risk means lenses and mirrors will fog without a dew heater or shield.</p>
+        <p><strong>Precip. Chance</strong> — the peak chance of precipitation in any single hour tonight, not the night's average, since one wet hour is all it takes.</p>
       </div>
     </div>`;
 }
