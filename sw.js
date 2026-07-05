@@ -1,4 +1,4 @@
-const CACHE = 'night-sky-v51';
+const CACHE = 'night-sky-v52';
 // Cross-context state for nightly notifications (written by forecast.js,
 // read here). NOT a versioned asset cache — must survive activate cleanup.
 const NOTIFY_CACHE = 'night-sky-notify';
