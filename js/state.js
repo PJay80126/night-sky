@@ -122,16 +122,29 @@ function getSunriseTime(date) {
   try { return Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, +1, noon, 1)?.date; } catch(e) { return null; }
 }
 
-function getNightWindow(date) {
+// Generalized twilight-window search. sunAltDeg is the sun-altitude
+// threshold that defines "dark" (-18 astronomical, -12 nautical, -6 civil).
+// Falls back to a fixed 18:00/06:00 clock window when SearchAltitude can't
+// find a crossing (e.g. high-latitude summer with no true dark).
+function getTwilightWindow(date, sunAltDeg) {
   const midnight = new Date(date); midnight.setHours(0, 0, 0, 0);
   const observer = new Astronomy.Observer(State.obsLat, State.obsLon, 0);
-  let darkStart  = null, darkEnd = null;
-  try { darkStart = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, -1, midnight, 1, -18)?.date; } catch(e) {}
+  let start = null, end = null;
+  try { start = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, -1, midnight, 1, sunAltDeg)?.date; } catch(e) {}
   try {
-    const searchFrom = darkStart ?? new Date(midnight.getTime() + 20 * 3600000);
-    darkEnd = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, +1, searchFrom, 1, -18)?.date;
+    const from = start ?? new Date(midnight.getTime() + 20 * 3600000);
+    end = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, +1, from, 1, sunAltDeg)?.date;
   } catch(e) {}
-  const nightStart = darkStart ?? new Date(midnight.getTime() + 18 * 3600000);
-  const nightEnd   = darkEnd   ?? new Date(midnight.getTime() + 30 * 3600000);
-  return { nightStart, nightEnd, noTrueDark: !darkStart || !darkEnd };
+  return {
+    nightStart:  start ?? new Date(midnight.getTime() + 18 * 3600000),
+    nightEnd:    end   ?? new Date(midnight.getTime() + 30 * 3600000),
+    hasTrueDark: !!(start && end),
+  };
+}
+
+// Astronomical twilight (-18°) window for tonight — used by Planets/Events
+// for faint-object visibility timing.
+function getNightWindow(date) {
+  const w = getTwilightWindow(date, -18);
+  return { nightStart: w.nightStart, nightEnd: w.nightEnd, noTrueDark: !w.hasTrueDark };
 }
