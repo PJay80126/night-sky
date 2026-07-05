@@ -881,3 +881,9 @@ body.map-fs #nightModeToggle { display: none; }
 .fc-best-window { font-size: 0.85rem; color: var(--gold-light); margin-top: 6px; }
 .fc-best-window.none { color: var(--text-dim); font-style: italic; }
 .planet-times .planet-detail-line { display: block; margin-top: 2px; font-size: 0.72rem; color: var(--text-dim); opacity: 0.85; white-space: normal; }
+.notify-card { display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid rgba(201,168,76,0.15); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+.notify-text { flex: 1; min-width: 0; }
+.notify-title { font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.1em; color: var(--gold-light); text-transform: uppercase; }
+.notify-sub { font-size: 0.78rem; color: var(--text-dim); font-style: italic; line-height: 1.4; margin-top: 3px; }
+.notify-toggle { flex-shrink: 0; font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 10px 18px; border-radius: 18px; border: 1px solid rgba(201,168,76,0.4); background: none; color: var(--text-dim); cursor: pointer; transition: all 0.2s; }
+.notify-toggle.on { background: rgba(201,168,76,0.18); color: var(--gold-light); border-color: var(--gold-light); }

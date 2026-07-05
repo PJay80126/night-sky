@@ -108,6 +108,7 @@ function _redrawCharts() {
 
 function refreshStaleData() {
   if (document.hidden) return;
+  maybeNotifyTonight();   // fire-and-forget; internally gated + once per day
 
   if (today().getTime() !== _lastActiveDate) {
     _lastActiveDate = today().getTime();

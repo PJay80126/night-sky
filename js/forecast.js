@@ -1016,9 +1016,149 @@ function _renderForecastData(data, container, cachedAt) {
       State.fcTmrwHrs  = tmrwHrs.length >= 2 ? tmrwHrs : null;
       State.fcHours48  = hours48.length >= 2 ? hours48 : null;
 
+      // Keep the service worker's notification state (coords + twilight
+      // window) fresh whenever the forecast renders.
+      if (localStorage.getItem('nightsky.notifyEnabled') === '1') _updateNotifyState();
+
       requestAnimationFrame(() => {
         drawCloudChart('cloudCanvas', nightHrs, bestWin);
         if (tmrwHrs.length >= 2) drawCloudChart('cloudCanvasTmrw', tmrwHrs);
         if (hours48.length >= 2) drawTempDewChart('tempDewCanvas', hours48);
       });
 }
+
+
+// ── Nightly heads-up notifications ──────────────────────────────────────
+// Opt-in daily notification with tonight's outlook. Two delivery paths
+// share the `nightly-outlook` notification tag and a once-per-local-date
+// guard: a periodicsync handler in sw.js (best-effort background, Android
+// installed PWA), and maybeNotifyTonight() below (17:00-22:00 while the
+// app is open, called from refreshStaleData's tick). State is shared with
+// the service worker through Cache Storage since the SW cannot read
+// localStorage.
+const NOTIFY_CACHE = 'night-sky-notify';
+const NOTIFY_KEY   = './notify-state';
+
+async function _readNotifyState() {
+  try {
+    const cache = await caches.open(NOTIFY_CACHE);
+    const resp  = await cache.match(NOTIFY_KEY);
+    return resp ? await resp.json() : null;
+  } catch (e) { return null; }
+}
+
+async function _writeNotifyState(patch) {
+  try {
+    const cache = await caches.open(NOTIFY_CACHE);
+    const state = { ...(await _readNotifyState() ?? {}), ...patch };
+    await cache.put(NOTIFY_KEY, new Response(JSON.stringify(state)));
+  } catch (e) { /* Cache Storage unavailable — background path degrades */ }
+}
+
+// Keeps the worker's copy of coords + tonight's twilight window current.
+// Called on enable and on every forecast render; the worker re-anchors the
+// stored clock times to its own date, so day-old values are fine.
+async function _updateNotifyState() {
+  if (State.obsLat == null) return;
+  const { nightStart, nightEnd } = getTwilightWindow(new Date(), -12);
+  await _writeNotifyState({
+    enabled: localStorage.getItem('nightsky.notifyEnabled') === '1',
+    lat: State.obsLat, lon: State.obsLon,
+    nightStartIso: nightStart.toISOString(),
+    nightEndIso:   nightEnd.toISOString(),
+    updated: Date.now(),
+  });
+}
+
+function _localDateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+async function toggleNightlyNotify() {
+  const sub = document.getElementById('notifySub');
+  if (localStorage.getItem('nightsky.notifyEnabled') === '1') {
+    localStorage.setItem('nightsky.notifyEnabled', '0');
+    await _writeNotifyState({ enabled: false });
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if ('periodicSync' in reg) await reg.periodicSync.unregister('nightly-outlook');
+    } catch (e) {}
+    _syncNotifyUI();
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') {
+    if (sub) sub.textContent = 'Notifications are blocked — allow them in your browser settings first.';
+    return;
+  }
+  localStorage.setItem('nightsky.notifyEnabled', '1');
+  await _updateNotifyState();
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if ('periodicSync' in reg) {
+      await reg.periodicSync.register('nightly-outlook', { minInterval: 12 * 3600 * 1000 });
+    }
+  } catch (e) { /* periodic sync unavailable — the in-page timer still works */ }
+  _syncNotifyUI();
+}
+
+async function _syncNotifyUI() {
+  const card = document.getElementById('notifyCard');
+  const btn  = document.getElementById('notifyToggle');
+  const sub  = document.getElementById('notifySub');
+  if (!card || !btn) return;
+  if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) return; // card stays hidden
+  card.hidden = false;
+  const on = localStorage.getItem('nightsky.notifyEnabled') === '1';
+  btn.textContent = on ? 'On' : 'Off';
+  btn.setAttribute('aria-checked', String(on));
+  btn.classList.toggle('on', on);
+  if (!sub) return;
+  if (!on) {
+    sub.textContent = "Get a late-afternoon notification with tonight's outlook.";
+    return;
+  }
+  let bg = false;
+  try { bg = 'periodicSync' in (await navigator.serviceWorker.ready); } catch (e) {}
+  sub.textContent = bg
+    ? 'On — delivered in the late afternoon (background timing is up to Android).'
+    : 'On — delivered around 17:00 while the app is open. Install the app on Android for background delivery.';
+}
+
+// Foreground delivery path — called from refreshStaleData()'s 5-minute tick.
+async function maybeNotifyTonight() {
+  try {
+    if (localStorage.getItem('nightsky.notifyEnabled') !== '1') return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    if (!('serviceWorker' in navigator)) return;
+    const now = new Date();
+    if (now.getHours() < 17 || now.getHours() >= 22) return;
+    const todayKey = _localDateKey(now);
+    if (localStorage.getItem('nightsky.lastNotifyDate') === todayKey) return;
+
+    let nightHrs = State.fcNightHrs;
+    if (!nightHrs || !nightHrs.length) {
+      const cached = _readForecastCache();
+      if (cached) nightHrs = getForecastNightHours(parseForecast(cached.data));
+    }
+    if ((!nightHrs || !nightHrs.length) && State.obsLat != null) {
+      const data = await fetchForecast(State.obsLat, State.obsLon);
+      nightHrs = getForecastNightHours(parseForecast(data));
+    }
+    if (!nightHrs || !nightHrs.length) return;
+
+    const outlook = getOutlook(nightHrs);
+    const win     = findBestWindow(nightHrs);
+    const fmt     = d => d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false });
+    const body    = win ? `Best window ${fmt(win.start)}–${fmt(win.end)}` : 'No clear window expected';
+
+    localStorage.setItem('nightsky.lastNotifyDate', todayKey);
+    await _writeNotifyState({ lastNotified: todayKey });
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification(`${outlook.icon} ${outlook.label} tonight`, {
+      body, tag: 'nightly-outlook', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png',
+    });
+  } catch (e) { /* notification failures must never break the refresh loop */ }
+}
+
+_syncNotifyUI();

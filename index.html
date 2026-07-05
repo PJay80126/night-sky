@@ -272,6 +272,14 @@
       <p class="subtitle">Open-Meteo · Tonight's Observing Conditions</p>
     </div>
 
+    <div class="notify-card" id="notifyCard" hidden>
+      <div class="notify-text">
+        <div class="notify-title">🔔 Nightly heads-up</div>
+        <div class="notify-sub" id="notifySub">Get a late-afternoon notification with tonight's outlook.</div>
+      </div>
+      <button class="notify-toggle" id="notifyToggle" role="switch" aria-checked="false" onclick="toggleNightlyNotify()">Off</button>
+    </div>
+
     <div id="fcContent">
       <div class="fc-loading"><div class="fc-spinner"></div>Loading forecast…</div>
     </div>
