@@ -89,20 +89,31 @@ date), but replace the `localHour` boundary comparisons with a real
 ```js
 function getForecastNightHours(hours) {
   if (!hours.length) return [];
-  const nowH       = new Date().getHours();
-  const todayStr   = hours.find(h => h.localHour === nowH)?.localDate || hours[0].localDate;
-  const dates      = [...new Set(hours.map(h => h.localDate))].sort();
-  const todayIdx   = dates.indexOf(todayStr);
-  const eveningStr = nowH < 6 ? (dates[todayIdx - 1] || dates[0]) : todayStr;
-  const { nightStart, nightEnd } = getTwilightWindow(new Date(eveningStr + 'T12:00:00'), -12);
+  const nowH     = new Date().getHours();
+  const todayStr = hours.find(h => h.localHour === nowH)?.localDate || hours[0].localDate;
+  const anchor   = new Date(todayStr + 'T12:00:00');
+  if (nowH < 6) anchor.setDate(anchor.getDate() - 1);
+  const { nightStart, nightEnd } = getTwilightWindow(anchor, -12);
   return hours.filter(h => h.time >= nightStart && h.time <= nightEnd);
 }
 ```
 
-`getTomorrowNightHours()` follows the same pattern using its existing
-`eveningIdx` date selection. The `dayAfterStr` variable is no longer needed
-since filtering by real timestamp naturally spans into the next calendar
-date.
+**Implementation note (post-review correction):** the first implementation
+of this function anchored the evening date via `dates[todayIdx - 1] ||
+dates[0]` (an array lookup) instead of the calendar-date arithmetic shown
+above. That had a critical bug: Open-Meteo's response never contains a
+"yesterday" entry, so the lookup always fell back to `dates[0]` (today)
+whenever `nowH < 6`, causing the function to return a future night window
+instead of the currently-in-progress one for anyone using the app between
+midnight and 6am. Code review caught this before merge; the fix (shown
+above) computes the anchor date directly via `Date` arithmetic, independent
+of what dates happen to be present in `hours`.
+
+`getTomorrowNightHours()` follows the original `dates`/`eveningIdx` pattern
+unchanged — it was confirmed not to have this bug, since it only ever reads
+`dates[todayIdx]`/`dates[todayIdx + 1]`, never a "yesterday" index. The
+`dayAfterStr` variable is no longer needed since filtering by real
+timestamp naturally spans into the next calendar date.
 
 Nautical twilight (-12°) is used per the earlier scope decision — matches
 the Messier tab's convention, dark enough for meaningful seeing/transparency

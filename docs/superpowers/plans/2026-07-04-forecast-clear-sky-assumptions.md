@@ -201,12 +201,11 @@ with:
 // dark (e.g. high-latitude summer).
 function getForecastNightHours(hours) {
   if (!hours.length) return [];
-  const nowH       = new Date().getHours();
-  const todayStr   = hours.find(h => h.localHour === nowH)?.localDate || hours[0].localDate;
-  const dates      = [...new Set(hours.map(h => h.localDate))].sort();
-  const todayIdx   = dates.indexOf(todayStr);
-  const eveningStr = nowH < 6 ? (dates[todayIdx - 1] || dates[0]) : todayStr;
-  const { nightStart, nightEnd } = getTwilightWindow(new Date(eveningStr + 'T12:00:00'), -12);
+  const nowH     = new Date().getHours();
+  const todayStr = hours.find(h => h.localHour === nowH)?.localDate || hours[0].localDate;
+  const anchor   = new Date(todayStr + 'T12:00:00');
+  if (nowH < 6) anchor.setDate(anchor.getDate() - 1);
+  const { nightStart, nightEnd } = getTwilightWindow(anchor, -12);
   return hours.filter(h => h.time >= nightStart && h.time <= nightEnd);
 }
 
@@ -222,6 +221,8 @@ function getTomorrowNightHours(hours) {
   return hours.filter(h => h.time >= nightStart && h.time <= nightEnd);
 }
 ```
+
+**Note:** this is the final, bug-fixed form of `getForecastNightHours` (matching what actually shipped after the Step 1 fix below). An earlier draft of this task used `dates[todayIdx - 1] || dates[0]` to anchor the evening date, which had a critical bug — Open-Meteo's response never contains a "yesterday" entry, so that lookup silently collapsed to *today* whenever `nowH < 6`, returning a future night window instead of the in-progress one. This was caught by code review and fixed in commit `6fbd9d5` via direct calendar-date arithmetic (shown above) rather than array lookup. See Task 3's Step-1-fix history for the full diagnosis.
 
 - [ ] **Step 2: Verify the real window is used and looks right**
 
