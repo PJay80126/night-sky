@@ -662,17 +662,21 @@ function buildCurrentConditionsHTML(currentHr) {
 }
 
 /** Builds the "Tonight's Outlook" card HTML. */
-function buildOutlookHTML(outlook, medians, tzLabel) {
+function buildOutlookHTML(outlook, medians, tzLabel, nightHrs) {
   const fmt1 = v => v !== null ? Math.round(v) + '%'  : '—';
   const fmtT = v => v !== null ? Math.round(v) + '°C' : '—';
   const fmtW = v => v !== null ? (parseFloat(v) / 3.6).toFixed(1) + ' m/s' : '—';
+  const fmtClock = d => d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false });
+  const windowLabel = nightHrs.length
+    ? `${fmtClock(nightHrs[0].time)}–${fmtClock(nightHrs[nightHrs.length - 1].time)}`
+    : '18:00–06:00';
 
   return `
     <div class="fc-outlook-card">
       <div class="fc-outlook-row">
         <div class="fc-outlook-icon">${outlook.icon}</div>
         <div class="fc-outlook-text">
-          <div class="fc-outlook-label">Tonight's Outlook · 18:00–06:00 ${tzLabel}</div>
+          <div class="fc-outlook-label">Tonight's Outlook · ${windowLabel} ${tzLabel}</div>
           <div class="fc-outlook-value ${outlook.cls}">${outlook.label}</div>
           <div class="fc-outlook-sub">${outlook.sub}</div>
         </div>
@@ -827,7 +831,7 @@ function renderForecast() {
       // Assemble page from helper-built cards
       container.innerHTML =
         buildCurrentConditionsHTML(currentHr)      +
-        buildOutlookHTML(outlook, medians, tzLabel) +
+        buildOutlookHTML(outlook, medians, tzLabel, nightHrs) +
         `<div class="fc-chart-card">
           <div class="fc-chart-header"><span>☁️</span><h3>Hourly Cloud Cover — Tonight</h3></div>
           <div class="fc-chart-body"><div class="fc-canvas-wrap"><canvas id="cloudCanvas" class="fc-canvas"></canvas></div></div>
