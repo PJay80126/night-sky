@@ -75,10 +75,17 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Fetch: serve from cache, fall back to network
+// Fetch: serve from cache, fall back to network. A cache miss with the
+// network down (e.g. an uncached URL while offline) must still resolve to
+// a controlled response — navigations get the cached app shell, anything
+// else a 503 the page code can handle like a normal HTTP failure.
 self.addEventListener('fetch', e => {
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.match(e.request)
+      .then(cached => cached || fetch(e.request))
+      .catch(() => e.request.mode === 'navigate'
+        ? caches.match('index.html').then(r => r || new Response('Offline', { status: 503 }))
+        : new Response('Offline', { status: 503 }))
   );
 });
 

@@ -455,14 +455,22 @@ vm.runInContext(`fcToggleInfo('missingPanel')`, sandbox); // must not throw
 check('InfoBtn: missing panel id is a no-op', true);
 
 // ── Service-worker nightly verdict (separate sandbox) ───────────────────
+const swHandlers = {};
 const swSandbox = {
   console,
-  caches: { open: async () => ({ match: async () => null, put: async () => {} }), keys: async () => [], delete: async () => {} },
+  caches: {
+    open: async () => ({ match: async () => null, put: async () => {} }),
+    match: async () => undefined,
+    keys: async () => [], delete: async () => {},
+  },
   clients: { matchAll: async () => [], openWindow: async () => {} },
   fetch: async () => ({ ok: false }),
   registration: { showNotification: async () => {} },
-  addEventListener: () => {},
+  addEventListener: (type, fn) => { swHandlers[type] = fn; },
   skipWaiting: () => {},
+  Response: class {
+    constructor(body, init = {}) { this.body = body; this.status = init.status ?? 200; }
+  },
 };
 swSandbox.self = swSandbox;
 vm.createContext(swSandbox);
@@ -528,6 +536,23 @@ check('SW fetch opts: nightly-outlook fetch gets a 15s abort signal',
     sandbox.__fetches.every(f => f.opts && f.opts.signal && f.opts.signal.__ms === 15000),
     JSON.stringify(sandbox.__fetches.map(f => f.opts ?? null)));
   check('FetchTimeout: HTTP failure still surfaces as an error', fcErr !== null, String(fcErr));
+
+  // SW fetch handler: cache miss + network failure must resolve to a
+  // controlled Response (503, or the cached shell for navigations) rather
+  // than rejecting respondWith.
+  swSandbox.fetch = async () => { throw new Error('offline'); };
+  swSandbox.caches.match = async (req) => (req === 'index.html' ? { __cachedIndex: true } : undefined);
+  const swFetch = async (mode) => {
+    let out;
+    swHandlers.fetch({ request: { mode }, respondWith: (p) => { out = p; } });
+    try { return await out; } catch (e) { return { __rejected: String(e) }; }
+  };
+  const apiResp = await swFetch('cors');
+  check('SW fetch: offline non-navigation request -> 503 Response, not a rejection',
+    apiResp && apiResp.status === 503 && !apiResp.__rejected, JSON.stringify(apiResp));
+  const navResp = await swFetch('navigate');
+  check('SW fetch: offline navigation falls back to cached index.html',
+    navResp && navResp.__cachedIndex === true, JSON.stringify(navResp));
 
   // ── Report ──────────────────────────────────────────────────────────────
   let failCount = 0;
