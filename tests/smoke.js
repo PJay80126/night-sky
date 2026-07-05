@@ -242,6 +242,34 @@ const moonDetails = vm.runInContext(`getPlanetDetails('Moon', new Date())`, sand
 check('PlanetDetails: Moon shows % lit + constellation only',
   /^\d+% lit · in .+/.test(moonDetails), moonDetails);
 
+// ── Circumpolar / never-rises detection ─────────────────────────────────
+// From a near-polar observer a planet on the same hemisphere as its
+// declination never rises or sets — it must read Circumpolar, not show
+// "—" times. The planet with the largest |dec| is picked at runtime so
+// the test doesn't decay as the planets move.
+const poleProbe = vm.runInContext(`
+  (() => {
+    const obs = new Astronomy.Observer(0, 0, 0);
+    let best = null;
+    for (const p of ['Venus', 'Mars', 'Jupiter', 'Saturn']) {
+      const dec = Astronomy.Equator(Astronomy.Body[p], new Date(), obs, true, true).dec;
+      if (!best || Math.abs(dec) > Math.abs(best.dec)) best = { p, dec };
+    }
+    return best;
+  })()
+`, sandbox);
+vm.runInContext(`State.obsLat = ${poleProbe.dec > 0 ? 89 : -89}; State.obsLon = 0;`, sandbox);
+const rtsPole = vm.runInContext(`getPlanetRiseTransitSet('${poleProbe.p}', getObservingDate())`, sandbox);
+check('Circumpolar: pole-side planet flagged alwaysUp (not dashes)',
+  rtsPole.alwaysUp === true && rtsPole.neverRises === false,
+  JSON.stringify({ probe: poleProbe, rts: { alwaysUp: rtsPole.alwaysUp, neverRises: rtsPole.neverRises } }));
+vm.runInContext(`State.obsLat = ${poleProbe.dec > 0 ? -89 : 89};`, sandbox);
+const rtsAnti = vm.runInContext(`getPlanetRiseTransitSet('${poleProbe.p}', getObservingDate())`, sandbox);
+check('Circumpolar: opposite-pole planet flagged neverRises',
+  rtsAnti.neverRises === true && rtsAnti.alwaysUp === false,
+  JSON.stringify({ probe: poleProbe, rts: { alwaysUp: rtsAnti.alwaysUp, neverRises: rtsAnti.neverRises } }));
+vm.runInContext('State.obsLat = 45.4215; State.obsLon = -75.6972;', sandbox); // restore
+
 // ── Planet visibility badge uses nautical (-12°) twilight ───────────────
 // Planets are bright enough for nautical twilight. At 52°N in midsummer
 // there is nautical dark but no astronomical dark — the badge must rate

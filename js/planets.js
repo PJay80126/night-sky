@@ -38,13 +38,24 @@ function getPlanetRiseTransitSet(name, date) {
     return `${t} <span class="time-day-suffix">${day}</span>`;
   };
 
+  // No rise and no set in the search window means the body is either
+  // circumpolar (above the horizon at transit) or never up — e.g. the
+  // Moon or a planet seen from high latitudes.
+  let alwaysUp = false, neverRises = false;
+  if (!rise && !set) {
+    let transitAlt = null;
+    try { transitAlt = transit ? planetAltitude(name, 0, transit) : null; } catch(e) {}
+    if (transitAlt != null && transitAlt > 0) alwaysUp = true;
+    else neverRises = true;
+  }
+
   return {
     rise, transit, set,
     riseStr:    fmt(rise),
     transitStr: fmt(transit),
     setStr:     fmt(set),
-    alwaysUp:   false,
-    neverRises: !rise && !set && !transit,
+    alwaysUp,
+    neverRises,
   };
 }
 
