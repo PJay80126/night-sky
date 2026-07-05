@@ -859,6 +859,7 @@ function renderForecast() {
 
   fetchForecast(State.obsLat, State.obsLon)
     .then(data => {
+      State.forecastFetchedAt = Date.now();
       const allHours  = parseForecast(data);
       const modelName = data._model || 'gem_seamless';
       const nightHrs  = getForecastNightHours(allHours);

@@ -28,6 +28,10 @@ const State = {
   planetsLoaded:  false,
   forecastLoaded: false,
   moonmapLoaded:  false,
+
+  // Active tab + freshness tracking (see refreshStaleData in main.js)
+  activeTab: 'moon',
+  forecastFetchedAt: null,
 };
 
 

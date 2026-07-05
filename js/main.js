@@ -1,6 +1,7 @@
 // ── Tab switching ─────────────────────────────────────────────────────────
 
 function switchTab(name) {
+  State.activeTab = name;
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
@@ -71,6 +72,51 @@ window.addEventListener('resize', () => {
     if (State.moonmapLoaded) resizeMoonMap();
   }, 150);
 });
+
+
+// ── Freshness ─────────────────────────────────────────────────────────────
+// Recompute stale data when the app resurfaces or a timer ticks. Three
+// tiers: (1) calendar-date rollover -> recompute everything, (2) forecast
+// older than an hour -> re-fetch, (3) >5 min since last chart draw ->
+// redraw so NOW lines stay honest. The Moon Map self-refreshes its Q-Day
+// dots and terminator on every render, so tier 3's resizeMoonMap() covers it.
+let _lastActiveDate = today().getTime();
+let _lastChartDraw  = Date.now();
+
+function _redrawCharts() {
+  _lastChartDraw = Date.now();
+  if (State.altDatasets) drawAltitudeGraph(State.altDatasets, State.altSteps, State.altHStart, State.altHEnd);
+  if (State.fcNightHrs)  drawCloudChart('cloudCanvas',     State.fcNightHrs);
+  if (State.fcTmrwHrs)   drawCloudChart('cloudCanvasTmrw', State.fcTmrwHrs);
+  if (State.fcHours48)   drawTempDewChart('tempDewCanvas', State.fcHours48);
+  if (State.moonmapLoaded) resizeMoonMap();
+}
+
+function refreshStaleData() {
+  if (document.hidden) return;
+
+  if (today().getTime() !== _lastActiveDate) {
+    _lastActiveDate = today().getTime();
+    renderMoon();
+    State.planetsLoaded  = false;
+    State.forecastLoaded = false;
+    _messierLoaded       = false;
+    _eventsLoaded        = false;
+    switchTab(State.activeTab);
+    _lastChartDraw = Date.now();
+    return;
+  }
+
+  if (State.forecastFetchedAt && Date.now() - State.forecastFetchedAt > 60 * 60000) {
+    State.forecastLoaded = false;
+    if (State.activeTab === 'forecast') { switchTab('forecast'); return; }
+  }
+
+  if (Date.now() - _lastChartDraw > 5 * 60000) _redrawCharts();
+}
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshStaleData(); });
+setInterval(refreshStaleData, 5 * 60000);
 
 
 // ── Service worker ────────────────────────────────────────────────────────
