@@ -860,6 +860,39 @@ function renderForecast() {
   fetchForecast(State.obsLat, State.obsLon)
     .then(data => {
       State.forecastFetchedAt = Date.now();
+      try {
+        localStorage.setItem('nightsky.fcCache',
+          JSON.stringify({ ts: Date.now(), lat: State.obsLat, lon: State.obsLon, data }));
+      } catch (e) { /* quota — cache is best-effort */ }
+      _renderForecastData(data, container, null);
+    })
+    .catch(err => {
+      console.error('Forecast fetch error:', err);
+      const cached = _readForecastCache();
+      if (cached) { _renderForecastData(cached.data, container, cached.ts); return; }
+      container.innerHTML = `
+        <div class="fc-error">
+          <strong>Could not load forecast</strong><br>${err.message}<br><br>
+          <span class="fc-error-detail">Check your internet connection and try again.</span>
+        </div>`;
+    });
+}
+
+/** Returns the cached {ts, lat, lon, data} forecast if it is for roughly the
+ *  current location (within 0.5°), else null. Age is shown, not enforced —
+ *  a 10-hour-old forecast at a no-signal dark site beats none at all. */
+function _readForecastCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem('nightsky.fcCache'));
+    if (!c || !c.data || !c.data.hourly) return null;
+    if (Math.abs(c.lat - State.obsLat) > 0.5 || Math.abs(c.lon - State.obsLon) > 0.5) return null;
+    return c;
+  } catch (e) { return null; }
+}
+
+// Renders a parsed Open-Meteo payload into the forecast container. cachedAt
+// is null for a live fetch, or the cache timestamp when serving offline.
+function _renderForecastData(data, container, cachedAt) {
       const allHours  = parseForecast(data);
       const modelName = data._model || 'gem_seamless';
       const nightHrs  = getForecastNightHours(allHours);
@@ -900,8 +933,13 @@ function renderForecast() {
       const locStr  = `${Math.abs(State.obsLat).toFixed(2)}°${State.obsLat >= 0 ? 'N' : 'S'}, `
                     + `${Math.abs(State.obsLon).toFixed(2)}°${State.obsLon >= 0 ? 'E' : 'W'}`;
 
+      const cacheBanner = cachedAt
+        ? `<div class="fc-cache-banner">⚠ Offline — showing cached forecast from ${new Date(cachedAt).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</div>`
+        : '';
+
       // Assemble page from helper-built cards
       container.innerHTML =
+        cacheBanner                                +
         buildCurrentConditionsHTML(currentHr)      +
         buildOutlookHTML(outlook, medians, tzLabel, nightHrs) +
         `<div class="fc-chart-card">
@@ -926,13 +964,4 @@ function renderForecast() {
         if (tmrwHrs.length >= 2) drawCloudChart('cloudCanvasTmrw', tmrwHrs);
         if (hours48.length >= 2) drawTempDewChart('tempDewCanvas', hours48);
       });
-    })
-    .catch(err => {
-      console.error('Forecast fetch error:', err);
-      container.innerHTML = `
-        <div class="fc-error">
-          <strong>Could not load forecast</strong><br>${err.message}<br><br>
-          <span class="fc-error-detail">Check your internet connection and try again.</span>
-        </div>`;
-    });
 }
