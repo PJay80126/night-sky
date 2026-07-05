@@ -421,6 +421,22 @@ const swAnchor = vm.runInContext(`
 check('SW anchor: stored clock times re-anchor to tonight (dawn after dusk)',
   swAnchor.duskH === 21 && swAnchor.dawnH === 5 && swAnchor.spansMidnight === true, JSON.stringify(swAnchor));
 
+// ── Notification once-per-day guard across both stores ──────────────────
+// The SW background path records lastNotified only in Cache Storage; the
+// foreground path must honor it (and sync it) or it re-notifies same-day.
+_store.delete('nightsky.lastNotifyDate');
+check('NotifyGuard: fresh day, no worker state -> not yet notified',
+  vm.runInContext(`_alreadyNotified('2026-07-05', null)`, sandbox) === false);
+check('NotifyGuard: worker already notified -> true and syncs the page guard',
+  vm.runInContext(`_alreadyNotified('2026-07-05', { lastNotified: '2026-07-05' })`, sandbox) === true &&
+  _store.get('nightsky.lastNotifyDate') === '2026-07-05');
+check('NotifyGuard: page already notified -> true without worker state',
+  vm.runInContext(`_alreadyNotified('2026-07-05', null)`, sandbox) === true);
+check('NotifyGuard: worker notified a different day -> false',
+  (_store.delete('nightsky.lastNotifyDate'),
+   vm.runInContext(`_alreadyNotified('2026-07-05', { lastNotified: '2026-07-04' })`, sandbox)) === false);
+_store.delete('nightsky.lastNotifyDate');
+
 swSandbox.AbortSignal = { timeout: (ms) => ({ __ms: ms }) };
 const swOpts = vm.runInContext(`typeof _fetchTimeoutOpts === 'function' ? _fetchTimeoutOpts() : null`, swSandbox);
 check('SW fetch opts: nightly-outlook fetch gets a 15s abort signal',

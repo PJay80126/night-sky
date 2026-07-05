@@ -1137,6 +1137,19 @@ async function _syncNotifyUI() {
     : 'On — delivered around 17:00 while the app is open. Install the app on Android for background delivery.';
 }
 
+// True when either delivery path already sent tonight's notification — the
+// page path stamps localStorage, the SW background path stamps only the
+// Cache Storage state. Honoring both (and syncing the page guard) stops the
+// foreground path from re-notifying after a background delivery.
+function _alreadyNotified(todayKey, swState) {
+  if (localStorage.getItem('nightsky.lastNotifyDate') === todayKey) return true;
+  if (swState && swState.lastNotified === todayKey) {
+    localStorage.setItem('nightsky.lastNotifyDate', todayKey);
+    return true;
+  }
+  return false;
+}
+
 // Foreground delivery path — called from refreshStaleData()'s 5-minute tick.
 async function maybeNotifyTonight() {
   try {
@@ -1146,7 +1159,7 @@ async function maybeNotifyTonight() {
     const now = new Date();
     if (now.getHours() < 17 || now.getHours() >= 22) return;
     const todayKey = _localDateKey(now);
-    if (localStorage.getItem('nightsky.lastNotifyDate') === todayKey) return;
+    if (_alreadyNotified(todayKey, await _readNotifyState())) return;
 
     let nightHrs = State.fcNightHrs;
     if (!nightHrs || !nightHrs.length) {
