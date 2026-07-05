@@ -880,7 +880,10 @@ function buildTempDewCardHTML() {
 
 /** Builds the "Tomorrow Night" chart card HTML. */
 function buildTomorrowCardHTML(tmrwOutlook, tmrwHrs) {
-  const tmrwDate   = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { weekday:'long', month:'short', day:'numeric' });
+  // Label the card with the evening the hours actually cover — after
+  // midnight "tomorrow night" is this coming evening, not now+24h.
+  const labelDate  = tmrwHrs.length ? tmrwHrs[0].time : new Date(Date.now() + 86400000);
+  const tmrwDate   = labelDate.toLocaleDateString('en-CA', { weekday:'long', month:'short', day:'numeric' });
   const badgeCls   = (tmrwOutlook.cls === 'clear' || tmrwOutlook.cls === 'mostly-clear') ? 'good'
                    : tmrwOutlook.cls === 'cloudy' ? 'poor' : 'warn';
   const chartOrMsg = tmrwHrs.length >= 2

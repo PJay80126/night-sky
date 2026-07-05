@@ -327,6 +327,14 @@ const astroHtml = vm.runInContext(
 check('HTML: Astronomy card shows peak precip + info panel',
   astroHtml.includes('peak tonight') && astroHtml.includes(`aria-controls="astroInfo"`) &&
   /<div class="fc-info-panel" id="astroInfo" hidden>/.test(astroHtml));
+const tmrwHtml = vm.runInContext(`
+  buildTomorrowCardHTML({label:'Clear', cls:'clear', sub:'sub'}, [
+    { time: new Date('2026-09-10T21:00:00') },
+    { time: new Date('2026-09-10T22:00:00') },
+  ])
+`, sandbox);
+check('HTML: Tomorrow card header date comes from the forecast hours, not now+24h',
+  /Tomorrow Night · [^<]*Sep\.? 10/.test(tmrwHtml), tmrwHtml.match(/<h3>[\s\S]*?<\/h3>/)?.[0]);
 
 // ── Tab re-activation redraws forecast charts (loads main.js) ────────────
 // A resize while the Forecast panel is hidden sizes its canvases to 0 width;
