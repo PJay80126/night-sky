@@ -542,11 +542,25 @@ function togglePhoto(featureName, btnEl) {
   btnEl.textContent = isOpen ? '📷 Photo' : '✕ Close';
 }
 
+let _lightboxReturnFocus = null;
+
 function openLightbox(src) {
+  _lightboxReturnFocus = document.activeElement;
   document.getElementById('lightboxImg').src = src;
   document.getElementById('lightbox').classList.add('open');
+  document.querySelector('.lightbox-close')?.focus();
 }
 
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
+  if (_lightboxReturnFocus?.focus) _lightboxReturnFocus.focus();
+  _lightboxReturnFocus = null;
 }
+
+// Escape closes the photo lightbox (only while it is open, so it never
+// fights the map-fullscreen Escape handler).
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('lightbox')?.classList.contains('open')) {
+    closeLightbox();
+  }
+});

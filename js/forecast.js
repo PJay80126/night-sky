@@ -804,7 +804,7 @@ function buildTempDewCardHTML() {
     <div class="fc-chart-card">
       <div class="fc-chart-header"><span>🌡</span><h3>Temperature &amp; Dew Point — 48 Hours</h3></div>
       <div class="fc-chart-body">
-        <div class="fc-canvas-wrap"><canvas id="tempDewCanvas" class="fc-canvas"></canvas></div>
+        <div class="fc-canvas-wrap"><canvas id="tempDewCanvas" class="fc-canvas" role="img" aria-label="48-hour temperature and dew point chart"></canvas></div>
         <div class="chart-legend">
           <div class="chart-legend-item">
             <div class="chart-legend-swatch-line fc-legend-temp"></div>
@@ -829,7 +829,7 @@ function buildTomorrowCardHTML(tmrwOutlook, tmrwHrs) {
   const badgeCls   = (tmrwOutlook.cls === 'clear' || tmrwOutlook.cls === 'mostly-clear') ? 'good'
                    : tmrwOutlook.cls === 'cloudy' ? 'poor' : 'warn';
   const chartOrMsg = tmrwHrs.length >= 2
-    ? `<div class="fc-canvas-wrap"><canvas id="cloudCanvasTmrw" class="fc-canvas"></canvas></div>
+    ? `<div class="fc-canvas-wrap"><canvas id="cloudCanvasTmrw" class="fc-canvas" role="img" aria-label="Hourly cloud cover chart for tomorrow night"></canvas></div>
        <p class="fc-chart-sub">${tmrwOutlook.sub}</p>`
     : `<p class="no-targets fc-no-data">Forecast data unavailable for tomorrow night.</p>`;
 
@@ -944,7 +944,7 @@ function _renderForecastData(data, container, cachedAt) {
         buildOutlookHTML(outlook, medians, tzLabel, nightHrs) +
         `<div class="fc-chart-card">
           <div class="fc-chart-header"><span>☁️</span><h3>Hourly Cloud Cover — Tonight</h3></div>
-          <div class="fc-chart-body"><div class="fc-canvas-wrap"><canvas id="cloudCanvas" class="fc-canvas"></canvas></div></div>
+          <div class="fc-chart-body"><div class="fc-canvas-wrap"><canvas id="cloudCanvas" class="fc-canvas" role="img" aria-label="Hourly cloud cover chart for tonight"></canvas></div></div>
         </div>`                                    +
         buildAstroConditionsHTML(seeing, transparency, dew, precipPeak) +
         buildTempDewCardHTML()                     +

@@ -179,7 +179,7 @@ function renderPlanets() {
       <div class="altitude-graph-wrap">
         <div class="altitude-graph-title">Altitude above Horizon &mdash; ${fmtH(H_START)} to ${fmtH(H_END)}</div>
         <div class="altitude-graph-container">
-          <canvas id="altCanvas" class="altitude-canvas"></canvas>
+          <canvas id="altCanvas" class="altitude-canvas" role="img" aria-label="Planet altitude chart for tonight"></canvas>
         </div>
         <div class="altitude-legend">${legendItems}</div>
       </div>`;

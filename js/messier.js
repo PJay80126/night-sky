@@ -489,9 +489,9 @@ function _renderMessierResults() {
   // Below horizon — collapsed by default, shown as a summary
   if (invisible.length > 0) {
     html += `<div class="target-group messier-below-group">
-      <div class="target-group-label" onclick="toggleMessierBelow(this)" style="cursor:pointer">
+      <button class="target-group-label messier-below-toggle" aria-expanded="false" onclick="toggleMessierBelow(this)">
         ⬇️ Below Horizon Tonight (${invisible.length}) <span class="messier-toggle-hint">tap to expand</span>
-      </div>
+      </button>
       <div class="messier-below-list" style="display:none">`;
     for (const obj of invisible) {
       const icon = MESSIER_ICONS[obj.subtype] || '◆';
@@ -523,5 +523,6 @@ function toggleMessierBelow(headerEl) {
   const hint = headerEl.querySelector('.messier-toggle-hint');
   const isHidden = list.style.display === 'none';
   list.style.display = isHidden ? 'block' : 'none';
+  headerEl.setAttribute('aria-expanded', String(isHidden));
   if (hint) hint.textContent = isHidden ? 'tap to collapse' : 'tap to expand';
 }
