@@ -93,7 +93,7 @@ The app is designed to work fully offline for everything except live weather. Ke
 | Feature | Why | Graceful degradation |
 |---------|-----|----------------------|
 | Forecast tab | Open-Meteo API (`api.open-meteo.com`) | Show a clear offline/error message; do not leave a blank tab |
-| Geolocation | Browser API — works offline if OS has cached GPS fix | Fallback coords defined in `state.js` |
+| Geolocation | Browser API — works offline if OS has cached GPS fix | Manual lat/lon entry on the location-error card, persisted in localStorage |
 
 ### Rules for maintaining offline capability
 1. **No new external resources** — never add `<script src="https://...">`, CDN fonts, remote images, or any fetch call outside Open-Meteo without discussing it first.
@@ -106,5 +106,5 @@ The app is designed to work fully offline for everything except live weather. Ke
 - No TypeScript, no linting config, no test suite — keep changes consistent with the existing vanilla JS style
 - `astronomy.browser.js` is a third-party bundle — never edit it directly
 - The app is mobile-first; test layout changes at narrow viewports
-- Location fallback (when geolocation is denied) defaults to a reasonable static location defined in `state.js`
-- Open-Meteo requires lat/lon from geolocation; forecast tab won't load without location permission
+- Location fallback: when geolocation is denied/unavailable, `getLocation()` in `state.js` falls back to manually entered coordinates persisted as `nightsky.manualLat`/`nightsky.manualLon` (entered via the location-error card's `setManualLocation()` form; `State.locationSource` records `'gps'` vs `'manual'`). There is no hardcoded static fallback location.
+- Open-Meteo requires lat/lon (from geolocation or manual entry); the forecast tab shows the location-error card without either

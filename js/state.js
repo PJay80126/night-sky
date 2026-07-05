@@ -9,6 +9,7 @@ const State = {
   // Location
   obsLat: null,
   obsLon: null,
+  locationSource: null,   // 'gps' | 'manual' | null
 
   // Planet altitude chart data (needed for resize redraws)
   altDatasets: null,
@@ -54,17 +55,52 @@ function formatDate(d) {
 
 // ── Observer location ───────────────────────────────────────────────────
 
+/** Returns validated manually-entered coords from localStorage, or null. */
+function _manualCoords() {
+  const lat = parseFloat(localStorage.getItem('nightsky.manualLat'));
+  const lon = parseFloat(localStorage.getItem('nightsky.manualLon'));
+  return (Number.isFinite(lat) && Math.abs(lat) <= 90 && Number.isFinite(lon) && Math.abs(lon) <= 180)
+    ? { lat, lon } : null;
+}
+
+// Geolocation first; previously saved manual coordinates as the fallback
+// when the API is missing, denied, or times out.
 function getLocation(onSuccess, onFail) {
-  if (!navigator.geolocation) { onFail(); return; }
+  const useManual = () => {
+    const m = _manualCoords();
+    if (!m) return false;
+    State.obsLat = m.lat; State.obsLon = m.lon;
+    State.locationSource = 'manual';
+    onSuccess();
+    return true;
+  };
+  if (!navigator.geolocation) { if (!useManual()) onFail(); return; }
   navigator.geolocation.getCurrentPosition(
     pos => {
       State.obsLat = pos.coords.latitude;
       State.obsLon = pos.coords.longitude;
+      State.locationSource = 'gps';
       onSuccess();
     },
-    () => onFail(),
+    () => { if (!useManual()) onFail(); },
     { timeout: 10000, maximumAge: 300000, enableHighAccuracy: false }
   );
+}
+
+/** Called by the "Use" button on the location error card. */
+function setManualLocation(tabName) {
+  const lat = parseFloat(document.getElementById('manualLat')?.value);
+  const lon = parseFloat(document.getElementById('manualLon')?.value);
+  const msg = document.getElementById('manualLocMsg');
+  if (!Number.isFinite(lat) || Math.abs(lat) > 90 || !Number.isFinite(lon) || Math.abs(lon) > 180) {
+    if (msg) msg.textContent = 'Enter a latitude −90…90 and longitude −180…180.';
+    return;
+  }
+  localStorage.setItem('nightsky.manualLat', String(lat));
+  localStorage.setItem('nightsky.manualLon', String(lon));
+  State.obsLat = lat; State.obsLon = lon;
+  State.locationSource = 'manual';
+  retryLocation(tabName);
 }
 
 /**
@@ -82,6 +118,15 @@ function locationErrorHTML(tabName, detail) {
       <button class="loc-retry-btn" onclick="retryLocation('${tabName}')">
         ↺ Retry Location
       </button>
+      <div class="manual-loc">
+        <div class="manual-loc-title">or enter coordinates manually</div>
+        <div class="manual-loc-row">
+          <input type="number" id="manualLat" placeholder="Latitude"  min="-90"  max="90"  step="any" inputmode="decimal" aria-label="Latitude in degrees">
+          <input type="number" id="manualLon" placeholder="Longitude" min="-180" max="180" step="any" inputmode="decimal" aria-label="Longitude in degrees">
+          <button class="loc-retry-btn manual-loc-btn" onclick="setManualLocation('${tabName}')">Use</button>
+        </div>
+        <div class="manual-loc-msg" id="manualLocMsg"></div>
+      </div>
     </div>`;
 }
 

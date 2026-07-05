@@ -410,6 +410,17 @@ h1 {
 .loc-retry-btn:hover, .loc-retry-btn:active {
   background: rgba(201,168,76,0.22); border-color: var(--gold-light);
 }
+.manual-loc { margin-top: 14px; width: 100%; max-width: 320px; }
+.manual-loc-title { font-size: 0.75rem; color: var(--text-dim); font-style: italic; margin-bottom: 8px; }
+.manual-loc-row { display: flex; gap: 8px; justify-content: center; }
+.manual-loc-row input {
+  width: 0; flex: 1; min-width: 70px; padding: 10px 10px; border-radius: 10px;
+  border: 1px solid rgba(201,168,76,0.3); background: rgba(255,255,255,0.04);
+  color: var(--text); font: inherit; font-size: 0.85rem;
+}
+.manual-loc-row input:focus { outline: none; border-color: var(--gold); }
+.manual-loc-btn { margin-top: 0; padding: 10px 16px; flex-shrink: 0; }
+.manual-loc-msg { font-size: 0.75rem; color: var(--gold); margin-top: 8px; min-height: 1em; }
 .fc-cond-rating.good { background: rgba(76,175,122,0.15); color: #4caf7a; border: 1px solid rgba(76,175,122,0.3); }
 .fc-cond-rating.warn { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
 .fc-cond-rating.poor { background: rgba(180,60,60,0.15); color: #c97c7c; border: 1px solid rgba(180,60,60,0.3); }
