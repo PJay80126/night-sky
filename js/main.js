@@ -80,7 +80,7 @@ window.addEventListener('resize', () => {
     if (State.altDatasets) {
       drawAltitudeGraph(State.altDatasets, State.altSteps, State.altHStart, State.altHEnd);
     }
-    if (State.fcNightHrs) drawCloudChart('cloudCanvas',      State.fcNightHrs);
+    if (State.fcNightHrs) drawCloudChart('cloudCanvas',      State.fcNightHrs, State.fcBestWin);
     if (State.fcTmrwHrs)  drawCloudChart('cloudCanvasTmrw',  State.fcTmrwHrs);
     if (State.fcHours48)  drawTempDewChart('tempDewCanvas',  State.fcHours48);
     if (State.moonmapLoaded) resizeMoonMap();
@@ -100,7 +100,7 @@ let _lastChartDraw  = Date.now();
 function _redrawCharts() {
   _lastChartDraw = Date.now();
   if (State.altDatasets) drawAltitudeGraph(State.altDatasets, State.altSteps, State.altHStart, State.altHEnd);
-  if (State.fcNightHrs)  drawCloudChart('cloudCanvas',     State.fcNightHrs);
+  if (State.fcNightHrs)  drawCloudChart('cloudCanvas',     State.fcNightHrs, State.fcBestWin);
   if (State.fcTmrwHrs)   drawCloudChart('cloudCanvasTmrw', State.fcTmrwHrs);
   if (State.fcHours48)   drawTempDewChart('tempDewCanvas', State.fcHours48);
   if (State.moonmapLoaded) resizeMoonMap();

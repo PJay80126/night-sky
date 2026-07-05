@@ -21,6 +21,7 @@ const State = {
   fcNightHrs:  null,
   fcTmrwHrs:   null,
   fcHours48:   null,
+  fcBestWin:   null,
 
   // Cloud cover overlay on planet chart
   cloudNightHours: null,

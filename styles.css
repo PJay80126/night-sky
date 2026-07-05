@@ -878,3 +878,5 @@ body.map-fs #nightModeToggle { display: none; }
 #mapTooltip .tip-name { color: var(--gold); font-weight: bold; font-size: 0.9rem; }
 #mapTooltip .tip-desc { color: var(--text-dim); font-size: 0.78rem; margin-top: 2px; line-height: 1.35; }
 #mapTooltip .tip-meta { color: var(--good); font-size: 0.72rem; margin-top: 4px; }
+.fc-best-window { font-size: 0.85rem; color: var(--gold-light); margin-top: 6px; }
+.fc-best-window.none { color: var(--text-dim); font-style: italic; }

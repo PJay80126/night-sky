@@ -172,6 +172,40 @@ function getOutlook(nightHours) {
   return base;
 }
 
+// ── Best observing window ────────────────────────────────────────────────
+// Longest contiguous run of observable hours — cloud <= 40% AND precip
+// chance < 40% — tie-broken by lower mean cloud. Both thresholds are
+// interpretation knobs, not physics (see CLAUDE.md). Returned `end` is the
+// last good hour + 1h, since each hourly record covers [t, t+1h).
+function findBestWindow(nightHours) {
+  const ok = h => (h.tcdc ?? 100) <= 40 && (h.precip_prob ?? 0) < 40;
+  let best = null, run = null;
+  for (const h of nightHours) {
+    if (ok(h)) {
+      (run ??= { hours: [] }).hours.push(h);
+    } else if (run) {
+      best = _betterRun(best, run);
+      run = null;
+    }
+  }
+  if (run) best = _betterRun(best, run);
+  if (!best) return null;
+  const clouds = best.hours.map(h => h.tcdc ?? 0);
+  return {
+    start:    best.hours[0].time,
+    end:      new Date(best.hours[best.hours.length - 1].time.getTime() + 3600000),
+    count:    best.hours.length,
+    avgCloud: Math.round(clouds.reduce((s, c) => s + c, 0) / clouds.length),
+  };
+}
+
+function _betterRun(a, b) {
+  if (!a) return b;
+  if (b.hours.length !== a.hours.length) return b.hours.length > a.hours.length ? b : a;
+  const mean = r => r.hours.reduce((s, h) => s + (h.tcdc ?? 0), 0) / r.hours.length;
+  return mean(b) < mean(a) ? b : a;
+}
+
 // ── Atmospheric stability scoring ───────────────────────────────────────
 // Seeing: bulk Richardson per HRDPS layer pair (see _bulkRichardson +
 //   computeSeeing). Surface wind is the HRDPS-unavailable fallback.
@@ -415,7 +449,7 @@ function getDewRisk(nightHrs) {
   return                      { label:'Very High', cls:'poor', text:`peak ${Math.round(rhPeak)}% RH — dew likely` };
 }
 
-function drawCloudChart(canvasId, nightHrs) {
+function drawCloudChart(canvasId, nightHrs, bestWin) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || nightHrs.length < 2) return;
   const dpr = window.devicePixelRatio || 1;
@@ -439,6 +473,20 @@ function drawCloudChart(canvasId, nightHrs) {
   const tRange = (tEnd - tStart) || 1;
   function xT(t) { return PAD_L + ((t - tStart) / tRange) * gW; }
   function yV(v) { return PAD_T + gH - (v / 100) * gH; }
+
+  // Best-window band (tonight chart only — caller passes bestWin)
+  if (bestWin) {
+    const x1 = xT(Math.max(bestWin.start, tStart));
+    const x2 = xT(Math.min(bestWin.end, tEnd));
+    if (x2 > x1) {
+      ctx.fillStyle = 'rgba(201,168,76,0.10)';
+      ctx.fillRect(x1, PAD_T, x2 - x1, gH);
+      ctx.strokeStyle = 'rgba(201,168,76,0.35)'; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+      ctx.beginPath(); ctx.moveTo(x1, PAD_T); ctx.lineTo(x1, PAD_T + gH);
+      ctx.moveTo(x2, PAD_T); ctx.lineTo(x2, PAD_T + gH); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
 
   // Grid lines
   for (const pct of [25, 50, 75, 100]) {
@@ -721,7 +769,7 @@ function buildCurrentConditionsHTML(currentHr) {
 }
 
 /** Builds the "Tonight's Outlook" card HTML. */
-function buildOutlookHTML(outlook, medians, tzLabel, nightHrs) {
+function buildOutlookHTML(outlook, medians, tzLabel, nightHrs, bestWin) {
   const fmt1 = v => v !== null ? Math.round(v) + '%'  : '—';
   const fmtT = v => v !== null ? Math.round(v) + '°C' : '—';
   const fmtW = v => v !== null ? (parseFloat(v) / 3.6).toFixed(1) + ' m/s' : '—';
@@ -729,6 +777,11 @@ function buildOutlookHTML(outlook, medians, tzLabel, nightHrs) {
   const windowLabel = nightHrs.length
     ? `${fmtClock(nightHrs[0].time)}–${fmtClock(nightHrs[nightHrs.length - 1].time)}`
     : '18:00–06:00';
+  const bestWinLine = !nightHrs.length ? '' :
+    !bestWin ? `<div class="fc-best-window none">No clear window expected tonight</div>` :
+    bestWin.count >= nightHrs.length
+      ? `<div class="fc-best-window">✨ All night looks good (avg ${bestWin.avgCloud}% cloud)</div>`
+      : `<div class="fc-best-window">✨ Best window: ${fmtClock(bestWin.start)}–${fmtClock(bestWin.end)} (${bestWin.count}h, avg ${bestWin.avgCloud}% cloud)</div>`;
 
   return `
     <div class="fc-outlook-card">
@@ -738,6 +791,7 @@ function buildOutlookHTML(outlook, medians, tzLabel, nightHrs) {
           <div class="fc-outlook-label">Tonight's Outlook · ${windowLabel} ${tzLabel}</div>
           <div class="fc-outlook-value ${outlook.cls}">${outlook.label}</div>
           <div class="fc-outlook-sub">${outlook.sub}</div>
+          ${bestWinLine}
         </div>
         ${_fcInfoBtn('outlookInfo')}
       </div>
@@ -750,6 +804,7 @@ function buildOutlookHTML(outlook, medians, tzLabel, nightHrs) {
       <div class="fc-info-panel" id="outlookInfo" hidden>
         <p><strong>The badge</strong> is the median (typical-hour) cloud cover across tonight's dark window — the time range in the title, which runs from dusk to dawn at your location rather than a fixed clock window.</p>
         <p><strong>Unsettled 🌦</strong> means rain is likely in at least one hour tonight even though reported cloud cover is low — don't trust the clear reading. <strong>Variable</strong> means the night splits into clear spells and cloudy stretches, so the median only tells half the story — check the hourly chart below.</p>
+        <p><strong>Best window</strong> is the longest stretch of hours with cloud ≤ 40% and under a 40% rain chance — the gold band on the hourly chart marks it.</p>
         <p>The four boxes are median values across the same window.</p>
       </div>
     </div>`;
@@ -918,6 +973,8 @@ function _renderForecastData(data, container, cachedAt) {
       const precipPeak = forecastMax(nightHrs, 'precip_prob');
 
       const outlook      = getOutlook(nightHrs);
+      const bestWin      = findBestWindow(nightHrs);
+      State.fcBestWin    = bestWin;
       const tmrwOutlook  = getOutlook(tmrwHrs);
       const seeing       = computeSeeing(nightHrs);
       const transparency = computeTransparency(nightHrs);
@@ -941,7 +998,7 @@ function _renderForecastData(data, container, cachedAt) {
       container.innerHTML =
         cacheBanner                                +
         buildCurrentConditionsHTML(currentHr)      +
-        buildOutlookHTML(outlook, medians, tzLabel, nightHrs) +
+        buildOutlookHTML(outlook, medians, tzLabel, nightHrs, bestWin) +
         `<div class="fc-chart-card">
           <div class="fc-chart-header"><span>☁️</span><h3>Hourly Cloud Cover — Tonight</h3></div>
           <div class="fc-chart-body"><div class="fc-canvas-wrap"><canvas id="cloudCanvas" class="fc-canvas" role="img" aria-label="Hourly cloud cover chart for tonight"></canvas></div></div>
@@ -960,7 +1017,7 @@ function _renderForecastData(data, container, cachedAt) {
       State.fcHours48  = hours48.length >= 2 ? hours48 : null;
 
       requestAnimationFrame(() => {
-        drawCloudChart('cloudCanvas', nightHrs);
+        drawCloudChart('cloudCanvas', nightHrs, bestWin);
         if (tmrwHrs.length >= 2) drawCloudChart('cloudCanvasTmrw', tmrwHrs);
         if (hours48.length >= 2) drawTempDewChart('tempDewCanvas', hours48);
       });
