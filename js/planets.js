@@ -226,6 +226,22 @@ function renderPlanets() {
   }
 }
 
+// Maps forecast cloud hours onto the altitude chart's hour axis. Returns
+// [{frac, pct}] where frac is the 0–1 x position across [H_START, H_END];
+// hours outside the window or without cloud data are dropped.
+function _cloudOverlayPoints(cloudHours, H_START, H_END) {
+  if (!cloudHours) return [];
+  const pts = [];
+  for (const h of cloudHours) {
+    if (h.tcdc == null) continue;
+    const hr    = h.time.getHours() + h.time.getMinutes() / 60;
+    const hNorm = hr < H_START ? hr + 24 : hr;
+    if (hNorm < H_START || hNorm > H_END) continue;
+    pts.push({ frac: (hNorm - H_START) / (H_END - H_START), pct: h.tcdc });
+  }
+  return pts;
+}
+
 function drawAltitudeGraph(datasets, STEPS, H_START, H_END) {
   H_START = H_START ?? 18;
   H_END   = H_END   ?? 30;
@@ -285,6 +301,24 @@ function drawAltitudeGraph(datasets, STEPS, H_START, H_END) {
     if ((hNorm - H_START) % altLabelEvery !== 0) continue;
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.fillText(String(h).padStart(2, '0') + ':00', x, H - PAD_B + 14);
+  }
+
+  // Cloud-cover overlay (0–100% mapped to full graph height), drawn under
+  // the planet curves. Dashed style matches the .cloud-legend-dot swatch.
+  const cloudPts = _cloudOverlayPoints(State.cloudNightHours, H_START, H_END);
+  if (cloudPts.length >= 2) {
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(140,170,230,0.8)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.lineJoin = 'round';
+    cloudPts.forEach((p, i) => {
+      const x = PAD_L + p.frac * gW;
+      const y = PAD_T + gH - (p.pct / 100) * gH;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   // Planet curves

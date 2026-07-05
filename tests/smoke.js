@@ -170,6 +170,26 @@ check('BestWindow: no qualifying hour -> null (cloudy hour AND rainy hour both r
 const bwAll = vm.runInContext(`findBestWindow([__hrAt(22,10,0), __hrAt(23,10,0), __hrAt(0,10,0)])`, sandbox);
 check('BestWindow: whole night good -> count spans every hour', bwAll && bwAll.count === 3, JSON.stringify(bwAll));
 
+// ── Cloud overlay points (planet altitude chart) ────────────────────────
+vm.runInContext(`
+  function __cloudHr(hh, tcdc) {
+    const d = new Date(); d.setHours(hh, 0, 0, 0);
+    return { time: d, tcdc };
+  }
+`, sandbox);
+const cop = vm.runInContext(
+  `_cloudOverlayPoints([__cloudHr(20,10), __cloudHr(23,50), __cloudHr(2,90), __cloudHr(12,40), __cloudHr(3,null)], 19, 29)`,
+  sandbox);
+check('CloudOverlay: night hours map onto the chart hour axis',
+  cop.length === 3 &&
+  Math.abs(cop[0].frac - 0.1) < 1e-9 && cop[0].pct === 10 &&
+  Math.abs(cop[1].frac - 0.4) < 1e-9 && cop[1].pct === 50 &&
+  Math.abs(cop[2].frac - 0.7) < 1e-9 && cop[2].pct === 90,
+  JSON.stringify(cop));
+check('CloudOverlay: out-of-window and null-cloud hours dropped', cop.every(p => p.frac >= 0 && p.frac <= 1));
+check('CloudOverlay: no cloud data -> empty list',
+  vm.runInContext(`_cloudOverlayPoints(null, 19, 29).length`, sandbox) === 0);
+
 // ── getPlanetDetails ────────────────────────────────────────────────────
 const jupDetails = vm.runInContext(`getPlanetDetails('Jupiter', new Date())`, sandbox);
 check('PlanetDetails: Jupiter has mag, arcsec size, constellation (no phase)',
