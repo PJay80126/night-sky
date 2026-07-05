@@ -44,7 +44,7 @@ async function fetchForecast(lat, lon) {
     const resp = await fetch(`${base}&hourly=${vars}&models=gem_hrdps_continental`, _fetchTimeoutOpts());
     if (resp.ok) {
       const data = await resp.json();
-      if (data.hourly && data.hourly.time && _hasPressureData(data.hourly)) {
+      if (data.hourly && data.hourly.time && data.hourly.time.length && _hasPressureData(data.hourly)) {
         data._model    = 'HRDPS (2.5 km)';
         data._highRes  = true;
         return data;
@@ -59,7 +59,9 @@ async function fetchForecast(lat, lon) {
   const resp = await fetch(`${base}&hourly=${_SURFACE_VARS.join(',')}&models=gem_seamless`, _fetchTimeoutOpts());
   if (!resp.ok) throw new Error(`Open-Meteo returned HTTP ${resp.status}`);
   const data = await resp.json();
-  if (!data.hourly || !data.hourly.time) throw new Error('Unexpected response from Open-Meteo.');
+  // .length matters: an empty time array is truthy but unusable — it would
+  // crash the current-conditions reduce downstream.
+  if (!data.hourly || !data.hourly.time || !data.hourly.time.length) throw new Error('Unexpected response from Open-Meteo.');
   data._model   = 'GEM Seamless';
   data._highRes = false;
   return data;
@@ -559,6 +561,22 @@ function drawCloudChart(canvasId, nightHrs, bestWin) {
   ctx.beginPath(); ctx.roundRect(PAD_L, PAD_T, gW, gH, 6); ctx.stroke();
 }
 
+// Real -12° twilight night bands overlapping [tStart, tEnd], clamped to the
+// range — the 48 h chart's night shading, kept consistent with the
+// twilight-based windows used everywhere else in the app.
+function _twilightBands(tStart, tEnd) {
+  const bands = [];
+  const day = new Date(tStart); day.setHours(12, 0, 0, 0);
+  if (day > tStart) day.setDate(day.getDate() - 1); // catch a night already in progress
+  for (; day <= tEnd; day.setDate(day.getDate() + 1)) {
+    const { nightStart, nightEnd } = getTwilightWindow(day, -12);
+    const s = new Date(Math.max(nightStart, tStart));
+    const e = new Date(Math.min(nightEnd, tEnd));
+    if (e > s) bands.push({ s, e });
+  }
+  return bands;
+}
+
 function drawTempDewChart(canvasId, hours48) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || hours48.length < 2) return;
@@ -622,14 +640,10 @@ function drawTempDewChart(canvasId, hours48) {
     ctx.closePath(); ctx.fillStyle = 'rgba(160,180,220,0.15)'; ctx.fill();
   }
 
-  // Night shading bands
-  const mn = new Date(tStart); mn.setHours(0, 0, 0, 0);
-  for (let d = 0; d <= 3; d++) {
-    const nightS = new Date(mn.getTime() + (d * 86400000) + 18 * 3600000);
-    const nightE = new Date(mn.getTime() + (d * 86400000) + 30 * 3600000);
-    if (nightE < tStart || nightS > tEnd) continue;
+  // Night shading bands — real twilight windows, not a fixed 18:00–06:00
+  for (const band of _twilightBands(tStart, tEnd)) {
     ctx.fillStyle = 'rgba(0,0,40,0.18)';
-    ctx.fillRect(xT(Math.max(nightS, tStart)), PAD_T, xT(Math.min(nightE, tEnd)) - xT(Math.max(nightS, tStart)), gH);
+    ctx.fillRect(xT(band.s), PAD_T, xT(band.e) - xT(band.s), gH);
   }
 
   // X-axis labels

@@ -135,13 +135,6 @@ const MESSIER_ICONS = {
   'Asterism':          '✴️',
 };
 
-// Compute altitude of a deep-sky object from RA (hours) and Dec (degrees)
-function dsoAltitude(raDeg, decDeg, date) {
-  const observer = new Astronomy.Observer(State.obsLat, State.obsLon, 0);
-  const hor = Astronomy.Horizon(date, observer, raDeg / 15, decDeg, 'normal');
-  return hor.altitude;
-}
-
 // Fast altitude for a fixed sidereal object, given pre-computed GAST (hours).
 // Avoids creating an Observer / calling Horizon on every sample.
 function _dsoAltFast(raHours, decDeg, gast, sinLat, cosLat, lonHours) {
@@ -149,19 +142,6 @@ function _dsoAltFast(raHours, decDeg, gast, sinLat, cosLat, lonHours) {
   const decR = decDeg * Math.PI / 180;
   const sinAlt = sinLat * Math.sin(decR) + cosLat * Math.cos(decR) * Math.cos(ha);
   return Math.asin(Math.max(-1, Math.min(1, sinAlt))) * 180 / Math.PI;
-}
-
-// Find peak altitude during the night window for an object
-function dsoPeakAlt(raDeg, decDeg, nightStart, nightEnd) {
-  let peak = -Infinity;
-  const step = 20 * 60000; // 20-minute steps
-  for (let t = nightStart.getTime(); t <= nightEnd.getTime(); t += step) {
-    try {
-      const alt = dsoAltitude(raDeg, decDeg, new Date(t));
-      if (alt > peak) peak = alt;
-    } catch(e) {}
-  }
-  return peak;
 }
 
 // Nautical twilight (sun alt < -12°) window for tonight.
@@ -244,6 +224,8 @@ function _initScopeInput() {
   if (b  && _bortle !== null && b.value === '')  b.value  = _bortle;
 }
 
+let _scopeRenderTimer = null;
+
 function _setIntPref(key, value, min, max, setter) {
   const v = parseInt(value, 10);
   if (Number.isFinite(v) && v >= min && v <= max) {
@@ -253,7 +235,12 @@ function _setIntPref(key, value, min, max, setter) {
     setter(null);
     localStorage.removeItem(key);
   }
-  if (_messierLoaded) _renderMessierResults();
+  // Debounced — oninput fires per keystroke, and a synchronous 110-row
+  // rebuild each time makes typing laggy on older phones.
+  if (_messierLoaded) {
+    clearTimeout(_scopeRenderTimer);
+    _scopeRenderTimer = setTimeout(() => _renderMessierResults(), 250);
+  }
 }
 
 function setScopeFL(value)       { _setIntPref('nightsky.scopeFL',       value, 100, 5000, v => _scopeFL = v); }

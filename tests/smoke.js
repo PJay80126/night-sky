@@ -312,6 +312,30 @@ check('Photos: map values, captions, and composite maria features all consistent
   photoConsistency.unmapped.length === 0,
   JSON.stringify(photoConsistency));
 
+// ── Messier scope-input debounce ─────────────────────────────────────────
+// oninput fires per keystroke; a synchronous 110-row rebuild each time
+// makes typing laggy — the rerender must be debounced.
+{
+  const savedTimeout = sandbox.setTimeout, savedClear = sandbox.clearTimeout;
+  const timers = [];
+  sandbox.setTimeout = (cb, ms) => { timers.push({ cb, ms, cancelled: false }); return timers.length; };
+  sandbox.clearTimeout = (id) => { if (timers[id - 1]) timers[id - 1].cancelled = true; };
+  vm.runInContext(`
+    __msRenderOrig = _renderMessierResults; __msCalls = 0;
+    _renderMessierResults = () => { __msCalls++; };
+    _messierLoaded = true;
+    setScopeFL('1500'); setScopeFL('1502');
+  `, sandbox);
+  const syncCalls = vm.runInContext('__msCalls', sandbox);
+  for (const t of timers) if (!t.cancelled) t.cb();
+  const flushed = vm.runInContext('__msCalls', sandbox);
+  vm.runInContext('_renderMessierResults = __msRenderOrig; _messierLoaded = false; _scopeFL = null;', sandbox);
+  _store.delete('nightsky.scopeFL');
+  sandbox.setTimeout = savedTimeout; sandbox.clearTimeout = savedClear;
+  check('Messier: scope-input rerender is debounced to one trailing call',
+    syncCalls === 0 && flushed === 1, JSON.stringify({ syncCalls, flushed, timers: timers.length }));
+}
+
 // ── Sky events ───────────────────────────────────────────────────────────
 // Elongation events must name the sky the library says the apparition
 // belongs to — the old ternary on el.elongation (always positive) labelled
@@ -487,6 +511,27 @@ const tmrwHtml = vm.runInContext(`
 check('HTML: Tomorrow card header date comes from the forecast hours, not now+24h',
   /Tomorrow Night · [^<]*Sep\.? 10/.test(tmrwHtml), tmrwHtml.match(/<h3>[\s\S]*?<\/h3>/)?.[0]);
 
+// ── 48h chart night shading = real twilight windows ─────────────────────
+const bandCheck = vm.runInContext(`
+  (() => {
+    if (typeof _twilightBands !== 'function') return null;
+    const start = new Date(); start.setHours(15, 0, 0, 0);
+    const end   = new Date(start.getTime() + 48 * 3600000);
+    const bands = _twilightBands(start, end);
+    const tonight = getTwilightWindow(start, -12);
+    return {
+      n: bands.length,
+      firstMatches: bands.length > 0 &&
+        Math.abs(bands[0].s - tonight.nightStart) < 60000 &&
+        Math.abs(bands[0].e - tonight.nightEnd) < 60000,
+      inRange: bands.every(b => b.s >= start && b.e <= end && b.e > b.s),
+    };
+  })()
+`, sandbox);
+check('TwilightBands: 48h window shades two real -12° twilight nights',
+  bandCheck && bandCheck.n === 2 && bandCheck.firstMatches && bandCheck.inRange,
+  JSON.stringify(bandCheck));
+
 // ── Tab re-activation redraws forecast charts (loads main.js) ────────────
 // A resize while the Forecast panel is hidden sizes its canvases to 0 width;
 // switching back must redraw them like the Planets branch already does.
@@ -626,6 +671,13 @@ check('SW fetch opts: nightly-outlook fetch gets a 15s abort signal',
     sandbox.__fetches.every(f => f.opts && f.opts.signal && f.opts.signal.__ms === 15000),
     JSON.stringify(sandbox.__fetches.map(f => f.opts ?? null)));
   check('FetchTimeout: HTTP failure still surfaces as an error', fcErr !== null, String(fcErr));
+
+  // An HTTP-200 response with an empty hourly.time array must reject —
+  // [] is truthy, and letting it through crashes currentHr downstream.
+  sandbox.fetch = async () => ({ ok: true, json: async () => ({ hourly: { time: [] } }) });
+  let emptyErr = null;
+  try { await vm.runInContext('fetchForecast(45, -75)', sandbox); } catch (e) { emptyErr = e; }
+  check('FetchGuard: empty hourly arrays reject instead of resolving', emptyErr !== null, String(emptyErr));
 
   // SW fetch handler: cache miss + network failure must resolve to a
   // controlled Response (503, or the cached shell for navigations) rather

@@ -9,7 +9,7 @@ let _program      = null;   // compiled shader program
 let _texture      = null;   // LROC WebGL texture
 let _textureReady = false;  // true after LROC image uploads to GPU
 let _uniLoc       = {};     // uniform locations
-let _mapZoom      = 1.0;    // 1.0–8.0
+let _mapZoom      = 1.0;    // 1.0–12.0
 let _mapPan       = { x: 0, y: 0 }; // normalised clip coords
 let _labelsOn     = true;
 let _telescopeView = false; // true = 180° flip (refractor/SCT view)
