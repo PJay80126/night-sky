@@ -37,7 +37,7 @@ const sandbox = {
 };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['astronomy.browser.js', 'js/state.js', 'js/moon.js', 'js/messier.js', 'js/forecast.js']) {
+for (const f of ['astronomy.browser.js', 'js/state.js', 'js/moon.js', 'js/messier.js', 'js/planets.js', 'js/forecast.js']) {
   vm.runInContext(read(f), sandbox, { filename: f });
 }
 vm.runInContext('State.obsLat = 45.4215; State.obsLon = -75.6972;', sandbox); // Ottawa
@@ -132,6 +132,41 @@ check('Outlook: overcast + wet -> stays Overcast (cross-check only fires on clea
 const variable = vm.runInContext(`getOutlook([...Array.from({length:6},()=>({tcdc:5,precip_prob:0})), ...Array.from({length:6},()=>({tcdc:90,precip_prob:0}))])`, sandbox);
 check('Outlook: half/half -> Variable sub-text', variable.sub.startsWith('Variable') || variable.label === 'Overcast',
   JSON.stringify(variable));
+
+// ── findBestWindow ──────────────────────────────────────────────────────
+vm.runInContext(`
+  function __hrAt(hh, tcdc, precip) {
+    const d = new Date(); d.setHours(hh, 0, 0, 0);
+    if (hh < 12) d.setDate(d.getDate() + 1);   // small-hours belong to tomorrow
+    return { time: d, tcdc, precip_prob: precip };
+  }
+`, sandbox);
+const bwLongest = vm.runInContext(`
+  findBestWindow([__hrAt(22,10,0), __hrAt(23,10,0), __hrAt(0,90,0), __hrAt(1,20,0), __hrAt(2,20,0), __hrAt(3,20,0)])
+`, sandbox);
+check('BestWindow: picks longest run, end = last hour + 1h',
+  bwLongest && bwLongest.count === 3 && bwLongest.start.getHours() === 1 && bwLongest.end.getHours() === 4,
+  JSON.stringify(bwLongest));
+const bwTie = vm.runInContext(`
+  findBestWindow([__hrAt(22,35,0), __hrAt(23,35,0), __hrAt(0,90,0), __hrAt(1,5,0), __hrAt(2,5,0)])
+`, sandbox);
+check('BestWindow: equal-length runs -> lower mean cloud wins',
+  bwTie && bwTie.start.getHours() === 1 && bwTie.avgCloud === 5, JSON.stringify(bwTie));
+const bwNone = vm.runInContext(`findBestWindow([__hrAt(22,90,0), __hrAt(23,20,80)])`, sandbox);
+check('BestWindow: no qualifying hour -> null (cloudy hour AND rainy hour both rejected)', bwNone === null);
+const bwAll = vm.runInContext(`findBestWindow([__hrAt(22,10,0), __hrAt(23,10,0), __hrAt(0,10,0)])`, sandbox);
+check('BestWindow: whole night good -> count spans every hour', bwAll && bwAll.count === 3, JSON.stringify(bwAll));
+
+// ── getPlanetDetails ────────────────────────────────────────────────────
+const jupDetails = vm.runInContext(`getPlanetDetails('Jupiter', new Date())`, sandbox);
+check('PlanetDetails: Jupiter has mag, arcsec size, constellation (no phase)',
+  /^mag -?\d+\.\d · \d+\.\d″ · in .+/.test(jupDetails) && !jupDetails.includes('% lit'), jupDetails);
+const venusDetails = vm.runInContext(`getPlanetDetails('Venus', new Date())`, sandbox);
+check('PlanetDetails: Venus includes illuminated fraction',
+  /% lit/.test(venusDetails), venusDetails);
+const moonDetails = vm.runInContext(`getPlanetDetails('Moon', new Date())`, sandbox);
+check('PlanetDetails: Moon shows % lit + constellation only',
+  /^\d+% lit · in .+/.test(moonDetails), moonDetails);
 
 // ── getDewRisk ──────────────────────────────────────────────────────────
 const dawnCollapse = vm.runInContext(`getDewRisk([...Array.from({length:8},(_,i)=>({tmp:15-i, dewp:7})), {tmp:7.5, dewp:7}])`, sandbox);
@@ -264,6 +299,45 @@ check('InfoBtn: second toggle closes panel + aria-expanded=false',
   ('hidden' in fakePanel.attrs) && fakeBtn.attrs['aria-expanded'] === 'false');
 vm.runInContext(`fcToggleInfo('missingPanel')`, sandbox); // must not throw
 check('InfoBtn: missing panel id is a no-op', true);
+
+// ── Service-worker nightly verdict (separate sandbox) ───────────────────
+const swSandbox = {
+  console,
+  caches: { open: async () => ({ match: async () => null, put: async () => {} }), keys: async () => [], delete: async () => {} },
+  clients: { matchAll: async () => [], openWindow: async () => {} },
+  fetch: async () => ({ ok: false }),
+  registration: { showNotification: async () => {} },
+  addEventListener: () => {},
+  skipWaiting: () => {},
+};
+swSandbox.self = swSandbox;
+vm.createContext(swSandbox);
+vm.runInContext(read('sw.js'), swSandbox, { filename: 'sw.js' });
+
+vm.runInContext(`
+  function __swHr(hh, cloud, precip) {
+    const d = new Date(); d.setHours(hh, 0, 0, 0);
+    if (hh < 12) d.setDate(d.getDate() + 1);
+    return { time: d, cloud, precip };
+  }
+`, swSandbox);
+const swClear = vm.runInContext(`_swNightVerdict([__swHr(22,5,0), __swHr(23,5,0), __swHr(0,5,0)])`, swSandbox);
+check('SW verdict: clear night -> Clear title + window body',
+  swClear.title.includes('Clear') && /Best window 22:00–01:00/.test(swClear.body), JSON.stringify(swClear));
+const swOvercast = vm.runInContext(`_swNightVerdict([__swHr(22,95,0), __swHr(23,95,60), __swHr(0,90,0)])`, swSandbox);
+check('SW verdict: overcast night -> Overcast + no window',
+  swOvercast.title.includes('Overcast') && swOvercast.body === 'No clear window expected', JSON.stringify(swOvercast));
+check('SW verdict: no cloud data -> null',
+  vm.runInContext(`_swNightVerdict([{time:new Date(), cloud:null, precip:0}])`, swSandbox) === null);
+const swAnchor = vm.runInContext(`
+  (() => {
+    const dusk = _anchorTonight('2026-01-01T21:30:00', null);
+    const dawn = _anchorTonight('2026-01-02T05:15:00', dusk);
+    return { duskH: dusk.getHours(), dawnH: dawn.getHours(), spansMidnight: dawn > dusk };
+  })()
+`, swSandbox);
+check('SW anchor: stored clock times re-anchor to tonight (dawn after dusk)',
+  swAnchor.duskH === 21 && swAnchor.dawnH === 5 && swAnchor.spansMidnight === true, JSON.stringify(swAnchor));
 
 // ── Report ──────────────────────────────────────────────────────────────
 let failCount = 0;
