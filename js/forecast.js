@@ -294,48 +294,34 @@ function _scoreBucket(score) {
 }
 
 function computeSeeing(nightHrs) {
-  // Compute nightly medians for every field Ri needs.
-  const temps = {
-    250:  forecastMedian(nightHrs, 'temp250'),
-    500:  forecastMedian(nightHrs, 'temp500'),
-    850:  forecastMedian(nightHrs, 'temp850'),
-    1000: forecastMedian(nightHrs, 'temp1000'),
-  };
-  const winds = {
-    250:  forecastMedian(nightHrs, 'wind250'),
-    500:  forecastMedian(nightHrs, 'wind500'),
-    850:  forecastMedian(nightHrs, 'wind850'),
-    1000: forecastMedian(nightHrs, 'wind1000'),
-  };
-  const dirs = {
-    250:  forecastMedian(nightHrs, 'wdir250'),
-    500:  forecastMedian(nightHrs, 'wdir500'),
-    850:  forecastMedian(nightHrs, 'wdir850'),
-    1000: forecastMedian(nightHrs, 'wdir1000'),
-  };
-  const heights = {
-    250:  forecastMedian(nightHrs, 'z250'),
-    500:  forecastMedian(nightHrs, 'z500'),
-    850:  forecastMedian(nightHrs, 'z850'),
-    1000: forecastMedian(nightHrs, 'z1000'),
-  };
-
+  // Bulk Ri is computed PER HOUR for each layer pair, then summarized as
+  // the nightly median per layer. Summarize-last (not summarize-first)
+  // because wind direction is circular — a sorted median of degree values
+  // near north is meaningless — and Ri is nonlinear in the shear term
+  // (ΔU²), so Ri-of-median-inputs diverges from the typical hourly Ri
+  // whenever the jet strengthens or veers overnight.
   const pairs = [
     { name: 'upper',    lo: 500,  hi: 250  },
     { name: 'mid',      lo: 850,  hi: 500  },
     { name: 'boundary', lo: 1000, hi: 850  },
   ];
 
-  const riByLayer = pairs.map(p => ({
-    name: p.name,
-    ri:   _bulkRichardson({
-      tLo: temps[p.lo],   tHi: temps[p.hi],
-      wLo: winds[p.lo],   wHi: winds[p.hi],
-      dLo: dirs[p.lo],    dHi: dirs[p.hi],
-      zLo: heights[p.lo], zHi: heights[p.hi],
-      pLo: p.lo,          pHi: p.hi,
-    }),
-  }));
+  const riByLayer = pairs.map(p => {
+    const hourly = nightHrs
+      .map(h => _bulkRichardson({
+        tLo: h['temp' + p.lo], tHi: h['temp' + p.hi],
+        wLo: h['wind' + p.lo], wHi: h['wind' + p.hi],
+        dLo: h['wdir' + p.lo], dHi: h['wdir' + p.hi],
+        zLo: h['z' + p.lo],    zHi: h['z' + p.hi],
+        pLo: p.lo,             pHi: p.hi,
+      }))
+      .filter(ri => ri != null);
+    if (!hourly.length) return { name: p.name, ri: null };
+    // Explicit three-way compare: hourly Ri may contain Infinity, and
+    // (a, b) => a - b yields NaN for Infinity - Infinity.
+    const s = [...hourly].sort((a, b) => a === b ? 0 : (a < b ? -1 : 1));
+    return { name: p.name, ri: s[Math.floor(s.length / 2)] };
+  });
 
   const haveRi = riByLayer.some(r => r.ri != null);
 
