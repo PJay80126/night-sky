@@ -106,7 +106,7 @@ function getVisibility(rts, planetName, date) {
 // ── Planets tab render ──────────────────────────────────────────────────
 
 function renderPlanets() {
-  const now  = today();
+  const now  = getObservingDate();
   const body = document.getElementById('planetsBody');
   const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
 
@@ -323,7 +323,7 @@ function drawAltitudeGraph(datasets, STEPS, H_START, H_END) {
   }
 
   // Dawn / dusk twilight lines
-  const { nightStart, nightEnd } = getNightWindow(today());
+  const { nightStart, nightEnd } = getNightWindow(getObservingDate());
   for (const { time, label } of [
     { time: nightStart, label: 'Dark' },
     { time: nightEnd,   label: 'Dawn' },

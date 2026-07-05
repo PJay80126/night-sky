@@ -74,6 +74,19 @@ const mi = vm.runInContext('getMoonInfo(new Date())', sandbox);
 check('Moon: getMoonInfo sane shape',
   mi.pct >= 0 && mi.pct <= 100 && !!mi.name && !!mi.icon && !!mi.label, JSON.stringify(mi));
 
+// ── Observing-night anchor ──────────────────────────────────────────────
+// Before 06:00 local the "observing night" is still the previous calendar
+// day's session — Planets/Messier must not flip to tomorrow at midnight.
+const obsEve  = vm.runInContext(`getObservingDate(new Date('2026-07-05T21:00:00'))`, sandbox);
+const obsPost = vm.runInContext(`getObservingDate(new Date('2026-07-06T01:30:00'))`, sandbox);
+const obsDawn = vm.runInContext(`getObservingDate(new Date('2026-07-06T05:59:00'))`, sandbox);
+const obsMorn = vm.runInContext(`getObservingDate(new Date('2026-07-06T06:00:00'))`, sandbox);
+check('ObservingDate: evening anchors to same day at midnight',
+  obsEve.getDate() === 5 && obsEve.getHours() === 0 && obsEve.getMinutes() === 0, String(obsEve));
+check('ObservingDate: 01:30 still belongs to the previous night', obsPost.getDate() === 5, String(obsPost));
+check('ObservingDate: 05:59 still the previous night', obsDawn.getDate() === 5, String(obsDawn));
+check('ObservingDate: 06:00 rolls over to the new day', obsMorn.getDate() === 6, String(obsMorn));
+
 // ── Manual location fallback ────────────────────────────────────────────
 _store.set('nightsky.manualLat', '44.0');
 _store.set('nightsky.manualLon', '-76.0');

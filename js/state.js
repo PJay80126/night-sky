@@ -49,6 +49,18 @@ function today() {
 
 function daysBetween(a, b) { return Math.round((b - a) / 86400000); }
 
+/**
+ * Midnight-normalised Date for the current *observing night*. Before 06:00
+ * local time this is the previous calendar day, so a session in progress at
+ * 1 AM keeps tonight's windows/targets instead of flipping to the next
+ * night at midnight. Same cutoff convention as getForecastNightHours().
+ */
+function getObservingDate(now = new Date()) {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (now.getHours() < 6) d.setDate(d.getDate() - 1);
+  return d;
+}
+
 function formatDate(d) {
   return d.toLocaleDateString('en-CA', { year:'numeric', month:'long', day:'numeric' });
 }

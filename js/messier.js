@@ -314,7 +314,7 @@ function renderMessier() {
 }
 
 function _computeMessier() {
-  const now  = today();
+  const now  = getObservingDate();
   const { nightStart, nightEnd } = _nauticalNight(now);
 
   // Pre-sample the nautical-twilight night at 5-minute steps.
@@ -382,7 +382,7 @@ function _computeMessier() {
 
 function _renderMessierResults() {
   const body = document.getElementById('messierBody');
-  const now  = today();
+  const now  = getObservingDate();
   const { nightStart, nightEnd } = _nauticalNight(now);
 
   const fmtTime = d => {
