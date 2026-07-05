@@ -127,15 +127,45 @@ function getTomorrowNightHours(hours) {
   return hours.filter(h => h.time >= nightStart && h.time <= nightEnd);
 }
 
+// Median cloud cover picks the base bucket (thresholds unchanged: 10/30/
+// 55/80). Two checks then run on top of that base bucket:
+//   1. Precipitation cross-check — cloud cover and precip probability can
+//      disagree in the model output (e.g. scattered convective showers
+//      under otherwise low reported cloud). If precip is likely (>=50%
+//      median) while cloud alone would say Clear/Mostly Clear, surface an
+//      explicit "Unsettled" verdict instead of a falsely reassuring badge.
+//   2. Variability check — a single median can't distinguish "clear until
+//      1am, then socks in" from "steady 50% cloud all night." If at least
+//      25% of night hours are clear (<=30%) AND at least 25% are cloudy
+//      (>=70%), note it in the sub-text without changing the icon/label/
+//      color, which stay anchored to the median.
 function getOutlook(nightHours) {
   if (!nightHours.length) return { icon:'❓', label:'No Data', sub:'Forecast unavailable', cls:'partly' };
-  const sorted = [...nightHours.map(h => h.tcdc ?? 0)].sort((a, b) => a - b);
+
+  const clouds = nightHours.map(h => h.tcdc ?? 0);
+  const sorted = [...clouds].sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)];
-  if (median <= 10) return { icon:'⭐', label:'Clear',         sub:'Excellent — minimal cloud cover expected',   cls:'clear'        };
-  if (median <= 30) return { icon:'🌙', label:'Mostly Clear',  sub:'Good — occasional cloud possible',          cls:'mostly-clear' };
-  if (median <= 55) return { icon:'⛅', label:'Partly Cloudy', sub:'Mixed — intermittent cloud cover',          cls:'partly'       };
-  if (median <= 80) return { icon:'🌥', label:'Mostly Cloudy', sub:'Poor — cloud will interrupt viewing',       cls:'cloudy'       };
-  return               { icon:'☁️', label:'Overcast',       sub:'Cloud cover will prevent observing tonight', cls:'cloudy'       };
+
+  let base =
+    median <= 10 ? { icon:'⭐', label:'Clear',         sub:'Excellent — minimal cloud cover expected',   cls:'clear'        } :
+    median <= 30 ? { icon:'🌙', label:'Mostly Clear',  sub:'Good — occasional cloud possible',          cls:'mostly-clear' } :
+    median <= 55 ? { icon:'⛅', label:'Partly Cloudy', sub:'Mixed — intermittent cloud cover',          cls:'partly'       } :
+    median <= 80 ? { icon:'🌥', label:'Mostly Cloudy', sub:'Poor — cloud will interrupt viewing',       cls:'cloudy'       } :
+                    { icon:'☁️', label:'Overcast',       sub:'Cloud cover will prevent observing tonight', cls:'cloudy'       };
+
+  const precipMed     = forecastMedian(nightHours, 'precip_prob');
+  const rainConflict   = precipMed != null && precipMed >= 50 && (base.cls === 'clear' || base.cls === 'mostly-clear');
+  if (rainConflict) {
+    return { icon:'🌦', label:'Unsettled', sub:`${Math.round(precipMed)}% chance of precipitation despite low reported cloud cover`, cls:'partly' };
+  }
+
+  const pctClear  = clouds.filter(c => c <= 30).length / clouds.length;
+  const pctCloudy = clouds.filter(c => c >= 70).length / clouds.length;
+  if (pctClear >= 0.25 && pctCloudy >= 0.25) {
+    return { ...base, sub: 'Variable — expect clear spells and cloudy stretches through the night' };
+  }
+
+  return base;
 }
 
 // ── Atmospheric stability scoring ───────────────────────────────────────
