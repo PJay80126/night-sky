@@ -421,11 +421,32 @@ const swAnchor = vm.runInContext(`
 check('SW anchor: stored clock times re-anchor to tonight (dawn after dusk)',
   swAnchor.duskH === 21 && swAnchor.dawnH === 5 && swAnchor.spansMidnight === true, JSON.stringify(swAnchor));
 
-// ── Report ──────────────────────────────────────────────────────────────
-let failCount = 0;
-for (const r of results) {
-  console.log(`${r.pass ? 'PASS' : 'FAIL'} - ${r.name}${r.pass ? '' : ' :: ' + (r.detail || '')}`);
-  if (!r.pass) failCount++;
-}
-console.log(`\n${results.length - failCount}/${results.length} checks passed.`);
-process.exit(failCount ? 1 : 0);
+swSandbox.AbortSignal = { timeout: (ms) => ({ __ms: ms }) };
+const swOpts = vm.runInContext(`typeof _fetchTimeoutOpts === 'function' ? _fetchTimeoutOpts() : null`, swSandbox);
+check('SW fetch opts: nightly-outlook fetch gets a 15s abort signal',
+  swOpts && swOpts.signal && swOpts.signal.__ms === 15000, JSON.stringify(swOpts));
+
+// ── Async checks + report ────────────────────────────────────────────────
+(async () => {
+  // fetchForecast must abort a stalled connection so the offline-cache
+  // fallback is actually reachable — both model attempts carry the signal.
+  sandbox.__fetches = [];
+  sandbox.fetch = async (url, opts) => { sandbox.__fetches.push({ url, opts }); return { ok: false, status: 503 }; };
+  sandbox.AbortSignal = { timeout: (ms) => ({ __ms: ms }) };
+  let fcErr = null;
+  try { await vm.runInContext('fetchForecast(45, -75)', sandbox); } catch (e) { fcErr = e; }
+  check('FetchTimeout: both Open-Meteo attempts carry a 15s abort signal',
+    sandbox.__fetches.length === 2 &&
+    sandbox.__fetches.every(f => f.opts && f.opts.signal && f.opts.signal.__ms === 15000),
+    JSON.stringify(sandbox.__fetches.map(f => f.opts ?? null)));
+  check('FetchTimeout: HTTP failure still surfaces as an error', fcErr !== null, String(fcErr));
+
+  // ── Report ──────────────────────────────────────────────────────────────
+  let failCount = 0;
+  for (const r of results) {
+    console.log(`${r.pass ? 'PASS' : 'FAIL'} - ${r.name}${r.pass ? '' : ' :: ' + (r.detail || '')}`);
+    if (!r.pass) failCount++;
+  }
+  console.log(`\n${results.length - failCount}/${results.length} checks passed.`);
+  process.exit(failCount ? 1 : 0);
+})();

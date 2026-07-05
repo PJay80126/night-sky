@@ -23,6 +23,15 @@ const _UPPER_AIR_VARS = [
   'relative_humidity_500hPa','cape',
 ];
 
+// Abort a stalled Open-Meteo request after 15 s — a one-bar connection at a
+// dark site can otherwise hang for minutes, keeping the spinner up and the
+// offline-cache fallback unreachable. Guarded for browsers without
+// AbortSignal.timeout (the request simply runs untimed there).
+function _fetchTimeoutOpts() {
+  return (typeof AbortSignal !== 'undefined' && AbortSignal.timeout)
+    ? { signal: AbortSignal.timeout(15000) } : {};
+}
+
 async function fetchForecast(lat, lon) {
   const base = `https://api.open-meteo.com/v1/forecast`
     + `?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}`
@@ -32,7 +41,7 @@ async function fetchForecast(lat, lon) {
   // for a proper Clear-Sky-Chart-style seeing score.
   try {
     const vars = [..._SURFACE_VARS, ..._UPPER_AIR_VARS].join(',');
-    const resp = await fetch(`${base}&hourly=${vars}&models=gem_hrdps_continental`);
+    const resp = await fetch(`${base}&hourly=${vars}&models=gem_hrdps_continental`, _fetchTimeoutOpts());
     if (resp.ok) {
       const data = await resp.json();
       if (data.hourly && data.hourly.time && _hasPressureData(data.hourly)) {
@@ -47,7 +56,7 @@ async function fetchForecast(lat, lon) {
 
   // Fallback: GEM seamless (global). No pressure-level data — seeing/transparency
   // will degrade to a surface-only estimate.
-  const resp = await fetch(`${base}&hourly=${_SURFACE_VARS.join(',')}&models=gem_seamless`);
+  const resp = await fetch(`${base}&hourly=${_SURFACE_VARS.join(',')}&models=gem_seamless`, _fetchTimeoutOpts());
   if (!resp.ok) throw new Error(`Open-Meteo returned HTTP ${resp.status}`);
   const data = await resp.json();
   if (!data.hourly || !data.hourly.time) throw new Error('Unexpected response from Open-Meteo.');

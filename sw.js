@@ -139,6 +139,13 @@ function _swNightVerdict(hours) {
   return { title: `${icon} ${label} tonight`, body };
 }
 
+// Abort a stalled Open-Meteo request after 15 s (mirrors forecast.js —
+// separate context, so the small helper is duplicated by design).
+function _fetchTimeoutOpts() {
+  return (typeof AbortSignal !== 'undefined' && AbortSignal.timeout)
+    ? { signal: AbortSignal.timeout(15000) } : {};
+}
+
 // Re-anchor a stored twilight instant's clock time onto the current date.
 // Dusk lands today; dawn lands on the first moment after dusk.
 function _anchorTonight(iso, duskAnchored) {
@@ -161,7 +168,7 @@ async function _nightlyOutlook() {
   const url = 'https://api.open-meteo.com/v1/forecast'
     + `?latitude=${(+state.lat).toFixed(4)}&longitude=${(+state.lon).toFixed(4)}`
     + '&hourly=cloud_cover,precipitation_probability&forecast_days=2&timezone=auto';
-  const resp = await fetch(url);
+  const resp = await fetch(url, _fetchTimeoutOpts());
   if (!resp.ok) return;
   const data = await resp.json();
   if (!data.hourly || !data.hourly.time) return;
