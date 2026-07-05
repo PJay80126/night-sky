@@ -290,6 +290,24 @@ check('Visibility: 52°N planet badge is altitude-based, never "No Dark Sky" whe
   visMidsummer.label !== 'No Dark Sky', JSON.stringify(visMidsummer));
 vm.runInContext('State.obsLat = 45.4215; State.obsLon = -75.6972;', sandbox); // restore
 
+// ── Lunar photo data consistency ─────────────────────────────────────────
+// Every FEATURE_IMAGE_MAP value must be a real photo; every caption must
+// describe a real photo (orphans hide typos like Ptolomaeus-for-Ptolemaeus);
+// and the maria/range features whose composite photos exist must be mapped.
+const photoConsistency = vm.runInContext(`
+  (() => ({
+    missingPhotos:  Object.values(FEATURE_IMAGE_MAP).filter(k => !PHOTO_DATA[k]),
+    orphanCaptions: Object.keys(PHOTO_CAPTIONS).filter(k => !PHOTO_DATA[k]),
+    unmapped: ['Straight Range', 'Mare Crisium', 'Mare Nubium', 'Mare Frigoris']
+      .filter(n => !FEATURE_IMAGE_MAP[n] || !PHOTO_DATA[FEATURE_IMAGE_MAP[n]]),
+  }))()
+`, sandbox);
+check('Photos: map values, captions, and composite maria features all consistent',
+  photoConsistency.missingPhotos.length === 0 &&
+  photoConsistency.orphanCaptions.length === 0 &&
+  photoConsistency.unmapped.length === 0,
+  JSON.stringify(photoConsistency));
+
 // ── Sky events ───────────────────────────────────────────────────────────
 // Elongation events must name the sky the library says the apparition
 // belongs to — the old ternary on el.elongation (always positive) labelled
