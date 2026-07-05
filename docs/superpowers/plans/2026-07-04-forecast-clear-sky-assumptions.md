@@ -435,13 +435,17 @@ git commit -m "feat(forecast): add precipitation conflict and cloud-variability 
 In `CLAUDE.md`, find the bullet starting with `- **Graceful scoring fallback**:` (in the "Key Conventions" section, after "Transparency scoring"). Insert these two new bullets immediately **before** it:
 
 ```markdown
-- **Forecast night window**: `getForecastNightHours()` / `getTomorrowNightHours()` no longer use a fixed 18:00–06:00 clock window. They call the shared `getTwilightWindow(date, sunAltDeg)` helper in `state.js` (also backing `getNightWindow()` for Planets/Events at -18° and `_nauticalNight()` for Messier at -12°) at nautical twilight (-12°), so "tonight" is the real sunset-to-sunrise dark window at the observer's location and date. All four Astronomy Conditions badges (Outlook, Seeing, Transparency, Dew Risk) inherit this window since they share the same `nightHrs` array. Falls back to the old 18:00/06:00 default automatically at latitudes with no true nautical dark (e.g. high-latitude summer).
+- **Forecast night window**: `getForecastNightHours()` / `getTomorrowNightHours()` no longer use a fixed 18:00–06:00 clock window. They call the shared `getTwilightWindow(date, sunAltDeg)` helper in `state.js` (also backing `getNightWindow()` for Planets/Events at -18° and `_nauticalNight()` for Messier at -12°) at nautical twilight (-12°), so "tonight" is the real sunset-to-sunrise dark window at the observer's location and date. All four Astronomy Conditions badges (Outlook, Seeing, Transparency, Dew Risk) inherit this window since they share the same `nightHrs` array. Falls back to the old 18:00/06:00 default automatically at latitudes with no true nautical dark (e.g. high-latitude summer). The "Tonight's Outlook" card's displayed clock range comes from `nightHrs[0].time`/`nightHrs[last].time` (the actual hourly forecast points used), not the exact twilight instants from `getTwilightWindow()` — this keeps the label consistent with the medians shown in the same card, at the cost of rounding to the nearest hour.
 - **Outlook cloud scoring**: `getOutlook()`'s five median-cloud-cover buckets (10/30/55/80, unchanged) get two checks layered on top of the base bucket: (1) a precipitation cross-check — if the night's median precipitation probability is ≥50% while the cloud-based verdict would be Clear/Mostly Clear, the badge becomes "Unsettled 🌦" instead, since cloud cover and precip probability can disagree in the model output; (2) a variability check — if at least 25% of night hours are clear (≤30% cloud) *and* at least 25% are cloudy (≥70% cloud), the sub-text notes "Variable" conditions without changing the icon/label/color, which stay driven by the median.
 ```
 
+- [ ] **Step 1b: Fix the now-stale "18:00–06:00" mention in the existing Seeing scoring bullet**
+
+The existing `- **Seeing scoring (Richardson Number)**:` bullet ends with the sentence: `Badges use nightly medians over the 18:00–06:00 window to stay consistent with the other badges.` This is now inaccurate — replace just that trailing sentence with: `Badges use nightly medians over the real nautical-twilight window (see Forecast night window below) to stay consistent with the other badges.` Leave the rest of that bullet (the Richardson-number formula description) untouched.
+
 - [ ] **Step 2: Verify the doc renders sensibly**
 
-Read the edited section back (`Read` the file or `git diff CLAUDE.md`) and confirm the new bullets sit in the right place, use consistent Markdown bullet formatting with their neighbors, and don't duplicate content already stated elsewhere in the file.
+Read the edited section back (`Read` the file or `git diff CLAUDE.md`) and confirm the new bullets sit in the right place, the Seeing scoring bullet's trailing sentence was updated (not duplicated), and nothing contradicts itself elsewhere in the file.
 
 - [ ] **Step 3: Commit**
 
