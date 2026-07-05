@@ -1,5 +1,19 @@
 // ── Tab switching ─────────────────────────────────────────────────────────
 
+// Pins the gold indicator under the active tab. Pixel values come from
+// getBoundingClientRect, so this must re-run whenever the layout changes
+// (tab switch, page load, resize/rotation).
+function _positionTabIndicator() {
+  const btn       = document.getElementById('tab-' + (State.activeTab || 'moon'));
+  const bar       = document.getElementById('tabBar');
+  const indicator = document.getElementById('tabIndicator');
+  if (!btn || !bar || !indicator) return;
+  const btnRect = btn.getBoundingClientRect();
+  const barRect = bar.getBoundingClientRect();
+  indicator.style.left  = (btnRect.left - barRect.left) + 'px';
+  indicator.style.width = btnRect.width + 'px';
+}
+
 function switchTab(name) {
   State.activeTab = name;
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -9,14 +23,7 @@ function switchTab(name) {
   activeBtn.classList.add('active');
   activeBtn.setAttribute('aria-selected', 'true');
 
-  // Move indicator bar
-  const btn       = document.getElementById('tab-' + name);
-  const bar       = document.getElementById('tabBar');
-  const indicator = document.getElementById('tabIndicator');
-  const btnRect   = btn.getBoundingClientRect();
-  const barRect   = bar.getBoundingClientRect();
-  indicator.style.left  = (btnRect.left - barRect.left) + 'px';
-  indicator.style.width = btnRect.width + 'px';
+  _positionTabIndicator();
 
   if (name === 'moonmap') {
     initMoonMap();
@@ -70,23 +77,14 @@ document.getElementById('tabBar').addEventListener('keydown', (e) => {
 });
 
 // Initialise tab indicator position after page load
-window.addEventListener('load', () => {
-  const btn       = document.getElementById('tab-moon');
-  const bar       = document.getElementById('tabBar');
-  const indicator = document.getElementById('tabIndicator');
-  if (btn && bar && indicator) {
-    const btnRect = btn.getBoundingClientRect();
-    const barRect = bar.getBoundingClientRect();
-    indicator.style.left  = (btnRect.left - barRect.left) + 'px';
-    indicator.style.width = btnRect.width + 'px';
-  }
-});
+window.addEventListener('load', () => _positionTabIndicator());
 
 // Redraw canvases on resize / zoom (debounced)
 let _resizeTimer = null;
 window.addEventListener('resize', () => {
   clearTimeout(_resizeTimer);
   _resizeTimer = setTimeout(() => {
+    _positionTabIndicator();
     if (State.altDatasets) {
       drawAltitudeGraph(State.altDatasets, State.altSteps, State.altHStart, State.altHEnd);
     }

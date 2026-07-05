@@ -510,6 +510,17 @@ check('Retab: missing tomorrow/48h data skips those charts without throwing',
   sandbox.__redraws.includes('cloudCanvas') && sandbox.__redraws.length === 1,
   JSON.stringify(sandbox.__redraws));
 
+// ── Tab indicator repositions on resize ──────────────────────────────────
+// switchTab positions the gold indicator from getBoundingClientRect, but a
+// rotation/resize invalidates those pixel values — the resize handler must
+// reposition it too (setTimeout is immediate in this harness, so the
+// debounce runs inline).
+_els['tabIndicator'].style.left = 'stale';
+_winHandlers.resize();
+check('Resize: tab indicator repositions for the active tab',
+  _els['tabIndicator'].style.left !== 'stale' && _els['tabIndicator'].style.width !== '',
+  JSON.stringify(_els['tabIndicator'].style));
+
 // ── fcToggleInfo against a stubbed DOM (keep last — replaces document stubs) ──
 const fakePanel = {
   attrs: { hidden: '' },
