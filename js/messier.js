@@ -166,19 +166,7 @@ function dsoPeakAlt(raDeg, decDeg, nightStart, nightEnd) {
 
 // Nautical twilight (sun alt < -12°) window for tonight.
 function _nauticalNight(date) {
-  const midnight = new Date(date); midnight.setHours(0, 0, 0, 0);
-  const observer = new Astronomy.Observer(State.obsLat, State.obsLon, 0);
-  let start = null, end = null;
-  try { start = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, -1, midnight, 1, -12)?.date; } catch(e) {}
-  try {
-    const from = start ?? new Date(midnight.getTime() + 20 * 3600000);
-    end = Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, +1, from, 1, -12)?.date;
-  } catch(e) {}
-  return {
-    nightStart: start ?? new Date(midnight.getTime() + 18 * 3600000),
-    nightEnd:   end   ?? new Date(midnight.getTime() + 30 * 3600000),
-    hasTrueDark: !!(start && end),
-  };
+  return getTwilightWindow(date, -12);
 }
 
 // Conservative minimum aperture (mm) for a meaningful view.
