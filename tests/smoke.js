@@ -15,14 +15,27 @@ const root = path.join(__dirname, '..');
 function read(p) { return fs.readFileSync(path.join(root, p), 'utf8'); }
 
 // ── Sandbox with minimal DOM/browser stubs ──────────────────────────────
+function mkEl() {
+  return {
+    innerHTML: '', textContent: '', className: '', style: {}, attrs: {},
+    setAttribute(n, v) { this.attrs[n] = v; },
+    getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; },
+    classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+    getContext: () => null,
+    offsetWidth: 800,
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 40 }),
+    addEventListener: () => {},
+  };
+}
 const _store = new Map();
 const sandbox = {
   console,
   document: {
-    getElementById: () => ({ innerHTML: '', style: {}, getContext: () => null, offsetWidth: 800 }),
+    getElementById: () => mkEl(),
     querySelector: () => null,
     querySelectorAll: () => [],
     addEventListener: () => {},
+    body: mkEl(),
   },
   navigator: {},   // no geolocation — exercises the manual fallback
   window: {},
@@ -31,7 +44,8 @@ const sandbox = {
     setItem: (k, v) => _store.set(k, String(v)),
     removeItem: (k) => _store.delete(k),
   },
-  requestAnimationFrame: () => {},
+  addEventListener: () => {},          // window-level (window === sandbox)
+  requestAnimationFrame: (cb) => cb(), // immediate, so scheduled redraws run inline
   setInterval: () => 0,
   setTimeout: () => 0,
 };
@@ -313,6 +327,33 @@ const astroHtml = vm.runInContext(
 check('HTML: Astronomy card shows peak precip + info panel',
   astroHtml.includes('peak tonight') && astroHtml.includes(`aria-controls="astroInfo"`) &&
   /<div class="fc-info-panel" id="astroInfo" hidden>/.test(astroHtml));
+
+// ── Tab re-activation redraws forecast charts (loads main.js) ────────────
+// A resize while the Forecast panel is hidden sizes its canvases to 0 width;
+// switching back must redraw them like the Planets branch already does.
+vm.runInContext(read('js/main.js'), sandbox, { filename: 'js/main.js' });
+sandbox.__redraws = [];
+vm.runInContext(`
+  drawCloudChart   = (id) => __redraws.push(id);
+  drawTempDewChart = (id) => __redraws.push(id);
+  drawAltitudeGraph = () => {};
+  State.forecastLoaded = true;
+  State.fcNightHrs = __nightHrs;
+  State.fcTmrwHrs  = __nightHrs;
+  State.fcHours48  = __nightHrs;
+  State.fcBestWin  = null;
+  switchTab('forecast');
+`, sandbox);
+check('Retab: forecast charts redraw when the tab is re-activated',
+  sandbox.__redraws.includes('cloudCanvas') &&
+  sandbox.__redraws.includes('cloudCanvasTmrw') &&
+  sandbox.__redraws.includes('tempDewCanvas'),
+  JSON.stringify(sandbox.__redraws));
+sandbox.__redraws.length = 0;
+vm.runInContext(`State.fcTmrwHrs = null; State.fcHours48 = null; switchTab('forecast');`, sandbox);
+check('Retab: missing tomorrow/48h data skips those charts without throwing',
+  sandbox.__redraws.includes('cloudCanvas') && sandbox.__redraws.length === 1,
+  JSON.stringify(sandbox.__redraws));
 
 // ── fcToggleInfo against a stubbed DOM (keep last — replaces document stubs) ──
 const fakePanel = {

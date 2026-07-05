@@ -45,6 +45,16 @@ function switchTab(name) {
   if (name === 'planets' && State.altDatasets) {
     requestAnimationFrame(() => drawAltitudeGraph(State.altDatasets, State.altSteps, State.altHStart, State.altHEnd));
   }
+
+  // Redraw forecast canvases if returning to that tab — a resize while the
+  // panel was hidden sizes them against a 0-width layout.
+  if (name === 'forecast' && State.forecastLoaded && State.fcNightHrs) {
+    requestAnimationFrame(() => {
+      drawCloudChart('cloudCanvas', State.fcNightHrs, State.fcBestWin);
+      if (State.fcTmrwHrs) drawCloudChart('cloudCanvasTmrw', State.fcTmrwHrs);
+      if (State.fcHours48) drawTempDewChart('tempDewCanvas', State.fcHours48);
+    });
+  }
 }
 
 // Arrow-key navigation across the tablist (Left/Right, wrapping)
