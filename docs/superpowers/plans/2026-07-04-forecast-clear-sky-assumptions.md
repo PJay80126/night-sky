@@ -412,7 +412,7 @@ const half = [
 ];
 getOutlook(half)
 ```
-Expected: `sub: 'Variable — expect clear spells and cloudy stretches through the night'`, with `icon`/`label`/`cls` matching whatever the median of `[5,5,5,5,5,5,90,90,90,90,90,90]` (i.e. 5) resolves to under the base bucket logic — `{ icon:'⭐', label:'Clear', cls:'clear' }`.
+Expected: `sub: 'Variable — expect clear spells and cloudy stretches through the night'`, with `icon`/`label`/`cls` matching whatever the median of `[5,5,5,5,5,5,90,90,90,90,90,90]` resolves to under the base bucket logic. Note: with 12 elements, `sorted[Math.floor(12/2)]` indexes into the *cloudy* half (index 6, the first `90`), so the true base bucket is `{ icon:'☁️', label:'Overcast', cls:'cloudy' }`, not Clear as an earlier draft of this doc assumed — the variability sub-text override still fires correctly regardless of which base bucket it's layered on.
 
 Then reload the Forecast tab normally (no synthetic data) and confirm "Tonight's Outlook" and "Tomorrow Night" badges still render with real forecast data, no console errors.
 
