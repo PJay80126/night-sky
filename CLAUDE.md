@@ -103,7 +103,8 @@ The app is designed to work fully offline for everything except live weather. Ke
 5. **No external API calls from JS files other than `forecast.js`** — astronomy calculations stay local.
 
 ## Important Notes
-- No TypeScript, no linting config, no test suite — keep changes consistent with the existing vanilla JS style
+- No TypeScript, no linting config, no build step — keep changes consistent with the existing vanilla JS style
+- **Testing**: run `node tests/smoke.js` — a dependency-free Node `vm` harness that loads the real production files with stubbed DOM/browser globals and drives the twilight, Q-Day, location-fallback, forecast-scoring, and cache logic. Keep it green, and extend it whenever changing scoring/twilight/Q-Day/location/cache behaviour. `tests/` is not an app asset (never add it to `sw.js` ASSETS).
 - `astronomy.browser.js` is a third-party bundle — never edit it directly
 - The app is mobile-first; test layout changes at narrow viewports
 - Location fallback: when geolocation is denied/unavailable, `getLocation()` in `state.js` falls back to manually entered coordinates persisted as `nightsky.manualLat`/`nightsky.manualLon` (entered via the location-error card's `setManualLocation()` form; `State.locationSource` records `'gps'` vs `'manual'`). There is no hardcoded static fallback location.
