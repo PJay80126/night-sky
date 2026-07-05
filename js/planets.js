@@ -86,7 +86,11 @@ function getVisibility(rts, planetName, date) {
   if (rts.neverRises) return { label:'Below Horizon', cls:'badge-below' };
   if (rts.alwaysUp)   return { label:'Circumpolar',   cls:'badge-good'  };
 
-  const { nightStart, nightEnd, noTrueDark } = getNightWindow(date);
+  // Planets are bright enough for nautical twilight — badge on the -12°
+  // window rather than the -18° faint-object window, so high-latitude
+  // summer doesn't mislabel Venus/Jupiter as unobservable. The Dark/Dawn
+  // rows and altitude graph stay astronomical (-18°) for the faint stuff.
+  const { nightStart, nightEnd, hasTrueDark } = getTwilightWindow(date, -12);
   let peakAlt = -Infinity;
   for (let t = new Date(nightStart); t <= nightEnd; t = new Date(t.getTime() + 30 * 60000)) {
     try {
@@ -95,7 +99,7 @@ function getVisibility(rts, planetName, date) {
     } catch(e) {}
   }
 
-  if (noTrueDark)    return { label:'No Dark Sky',   cls:'badge-poor'  };
+  if (!hasTrueDark)  return { label:'No Dark Sky',   cls:'badge-poor'  };
   if (peakAlt >= 30) return { label:'Prime Viewing', cls:'badge-good'  };
   if (peakAlt >= 15) return { label:'Visible',       cls:'badge-ok'    };
   if (peakAlt >  0)  return { label:'Low Sky',       cls:'badge-poor'  };

@@ -242,6 +242,23 @@ const moonDetails = vm.runInContext(`getPlanetDetails('Moon', new Date())`, sand
 check('PlanetDetails: Moon shows % lit + constellation only',
   /^\d+% lit · in .+/.test(moonDetails), moonDetails);
 
+// ── Planet visibility badge uses nautical (-12°) twilight ───────────────
+// Planets are bright enough for nautical twilight. At 52°N in midsummer
+// there is nautical dark but no astronomical dark — the badge must rate
+// the planet by altitude, not report "No Dark Sky". (Holds trivially in
+// winter, when both windows exist.)
+vm.runInContext('State.obsLat = 52.13; State.obsLon = -106.67;', sandbox); // Saskatoon
+const visMidsummer = vm.runInContext(`
+  (() => {
+    const d   = getObservingDate();
+    const rts = getPlanetRiseTransitSet('Jupiter', d);
+    return getVisibility(rts, 'Jupiter', d);
+  })()
+`, sandbox);
+check('Visibility: 52°N planet badge is altitude-based, never "No Dark Sky" when nautical dark exists',
+  visMidsummer.label !== 'No Dark Sky', JSON.stringify(visMidsummer));
+vm.runInContext('State.obsLat = 45.4215; State.obsLon = -75.6972;', sandbox); // restore
+
 // ── getDewRisk ──────────────────────────────────────────────────────────
 const dawnCollapse = vm.runInContext(`getDewRisk([...Array.from({length:8},(_,i)=>({tmp:15-i, dewp:7})), {tmp:7.5, dewp:7}])`, sandbox);
 check('DewRisk: spread collapsing to 0.5C at dawn -> Very High',
