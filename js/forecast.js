@@ -131,8 +131,9 @@ function getTomorrowNightHours(hours) {
 // 55/80). Two checks then run on top of that base bucket:
 //   1. Precipitation cross-check — cloud cover and precip probability can
 //      disagree in the model output (e.g. scattered convective showers
-//      under otherwise low reported cloud). If precip is likely (>=50%
-//      median) while cloud alone would say Clear/Mostly Clear, surface an
+//      under otherwise low reported cloud). If any hour is likely wet
+//      (nightly PEAK >=50% — a median would hide a short pre-dawn shower)
+//      while cloud alone would say Clear/Mostly Clear, surface an
 //      explicit "Unsettled" verdict instead of a falsely reassuring badge.
 //   2. Variability check — a single median can't distinguish "clear until
 //      1am, then socks in" from "steady 50% cloud all night." If at least
@@ -153,10 +154,10 @@ function getOutlook(nightHours) {
     median <= 80 ? { icon:'🌥', label:'Mostly Cloudy', sub:'Poor — cloud will interrupt viewing',       cls:'cloudy'       } :
                     { icon:'☁️', label:'Overcast',       sub:'Cloud cover will prevent observing tonight', cls:'cloudy'       };
 
-  const precipMed     = forecastMedian(nightHours, 'precip_prob');
-  const rainConflict   = precipMed != null && precipMed >= 50 && (base.cls === 'clear' || base.cls === 'mostly-clear');
+  const precipPeak   = forecastMax(nightHours, 'precip_prob');
+  const rainConflict = precipPeak != null && precipPeak >= 50 && (base.cls === 'clear' || base.cls === 'mostly-clear');
   if (rainConflict) {
-    return { icon:'🌦', label:'Unsettled', sub:`${Math.round(precipMed)}% chance of precipitation despite low reported cloud cover`, cls:'partly' };
+    return { icon:'🌦', label:'Unsettled', sub:`Up to ${Math.round(precipPeak)}% chance of precipitation despite low reported cloud cover`, cls:'partly' };
   }
 
   const pctClear  = clouds.filter(c => c <= 30).length / clouds.length;
@@ -713,9 +714,9 @@ function buildOutlookHTML(outlook, medians, tzLabel, nightHrs) {
 }
 
 /** Builds the "Astronomy Conditions" card HTML — seeing, transparency, dew, precip. */
-function buildAstroConditionsHTML(seeing, transparency, dew, precipMed) {
-  const precipCls = (precipMed ?? 0) < 20 ? 'good' : (precipMed ?? 0) < 50 ? 'warn' : 'poor';
-  const precipLbl = (precipMed ?? 0) < 20 ? 'Low'  : (precipMed ?? 0) < 50 ? 'Moderate' : 'High';
+function buildAstroConditionsHTML(seeing, transparency, dew, precipPeak) {
+  const precipCls = (precipPeak ?? 0) < 20 ? 'good' : (precipPeak ?? 0) < 50 ? 'warn' : 'poor';
+  const precipLbl = (precipPeak ?? 0) < 20 ? 'Low'  : (precipPeak ?? 0) < 50 ? 'Moderate' : 'High';
 
   return `
     <div class="fc-layers-card">
@@ -742,7 +743,7 @@ function buildAstroConditionsHTML(seeing, transparency, dew, precipMed) {
         <div class="fc-cond-box">
           <div class="fc-cond-icon">☔</div>
           <div class="fc-cond-label">Precip. Chance</div>
-          <div class="fc-cond-value">${precipMed !== null ? Math.round(precipMed) + '%' : '—'} chance</div>
+          <div class="fc-cond-value">${precipPeak !== null ? Math.round(precipPeak) + '%' : '—'} peak tonight</div>
           <div class="fc-cond-rating ${precipCls}">${precipLbl}</div>
         </div>
       </div>
@@ -832,7 +833,7 @@ function renderForecast() {
         rh:   forecastMedian(nightHrs, 'rh'),
         wspd: forecastMedian(nightHrs, 'wspd'),
       };
-      const precipMed = forecastMedian(nightHrs, 'precip_prob');
+      const precipPeak = forecastMax(nightHrs, 'precip_prob');
 
       const outlook      = getOutlook(nightHrs);
       const tmrwOutlook  = getOutlook(tmrwHrs);
@@ -858,7 +859,7 @@ function renderForecast() {
           <div class="fc-chart-header"><span>☁️</span><h3>Hourly Cloud Cover — Tonight</h3></div>
           <div class="fc-chart-body"><div class="fc-canvas-wrap"><canvas id="cloudCanvas" class="fc-canvas"></canvas></div></div>
         </div>`                                    +
-        buildAstroConditionsHTML(seeing, transparency, dew, precipMed) +
+        buildAstroConditionsHTML(seeing, transparency, dew, precipPeak) +
         buildTempDewCardHTML()                     +
         buildTomorrowCardHTML(tmrwOutlook, tmrwHrs)+
         `<p class="fc-footer">Location: ${locStr} · Model: ${modelName} via Open-Meteo</p>`;
