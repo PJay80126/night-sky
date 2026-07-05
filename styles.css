@@ -880,3 +880,4 @@ body.map-fs #nightModeToggle { display: none; }
 #mapTooltip .tip-meta { color: var(--good); font-size: 0.72rem; margin-top: 4px; }
 .fc-best-window { font-size: 0.85rem; color: var(--gold-light); margin-top: 6px; }
 .fc-best-window.none { color: var(--text-dim); font-style: italic; }
+.planet-times .planet-detail-line { display: block; margin-top: 2px; font-size: 0.72rem; color: var(--text-dim); opacity: 0.85; white-space: normal; }

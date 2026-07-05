@@ -48,6 +48,32 @@ function getPlanetRiseTransitSet(name, date) {
   };
 }
 
+// Equatorial radii (km) for apparent-diameter calculation.
+const PLANET_RADIUS_KM = {
+  Mercury: 2439.7, Venus: 6051.8, Mars: 3389.5, Jupiter: 71492,
+  Saturn: 60268, Uranus: 25559, Neptune: 24764,
+};
+
+// One-line physical details, evaluated at `when` (ideally transit — best
+// viewing). Illuminated fraction is only shown for the inner planets +
+// Mars, where it actually varies. Returns null on any failure so the row
+// simply omits the line.
+function getPlanetDetails(name, when) {
+  try {
+    const body     = Astronomy.Body[name];
+    const observer = new Astronomy.Observer(State.obsLat, State.obsLon, 0);
+    const eq       = Astronomy.Equator(body, when, observer, true, true);
+    const con      = Astronomy.Constellation(eq.ra, eq.dec);
+    const illum    = Astronomy.Illumination(body, when);
+    const pctLit   = Math.round(illum.phase_fraction * 100);
+    if (name === 'Moon') return `${pctLit}% lit · in ${con.name}`;
+    const distKm     = eq.dist * 149597870.7;              // AU → km
+    const sizeArcsec = 2 * Math.atan(PLANET_RADIUS_KM[name] / distKm) * (180 / Math.PI) * 3600;
+    const phasePart  = ['Mercury', 'Venus', 'Mars'].includes(name) ? ` · ${pctLit}% lit` : '';
+    return `mag ${illum.mag.toFixed(1)} · ${sizeArcsec.toFixed(1)}″${phasePart} · in ${con.name}`;
+  } catch (e) { return null; }
+}
+
 function planetAltitude(name, hour, date) {
   const body     = Astronomy.Body[name];
   const observer = new Astronomy.Observer(State.obsLat, State.obsLon, 0);
@@ -127,6 +153,9 @@ function renderPlanets() {
       const upDuringNight  = (riseTime && riseTime < nightEnd) || (setTime && setTime > nightStart);
       if (upDuringNight) visiblePlanets.push(planet);
     }
+
+    const details = rts.neverRises ? null : getPlanetDetails(planet.name, rts.transit ?? new Date());
+    if (details) timesHTML += `<span class="planet-detail-line">${details}</span>`;
 
     listHTML += `<div class="planet-row" style="animation-delay:${delay}ms">
       <span class="planet-icon" style="color:${planet.color}">${planet.icon}</span>
