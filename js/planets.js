@@ -93,16 +93,18 @@ function planetAltitude(name, hour, date) {
   return hor.altitude;
 }
 
+// peakAlt is returned alongside the badge — renderPlanets uses it to decide
+// altitude-graph membership, so badge and graph always agree on a planet.
 function getVisibility(rts, planetName, date) {
-  if (rts.neverRises) return { label:'Below Horizon', cls:'badge-below' };
-  if (rts.alwaysUp)   return { label:'Circumpolar',   cls:'badge-good'  };
+  if (rts.neverRises) return { label:'Below Horizon', cls:'badge-below', peakAlt: -90 };
+  if (rts.alwaysUp)   return { label:'Circumpolar',   cls:'badge-good',  peakAlt: 90  };
 
   // Planets are bright enough for nautical twilight — badge on the -12°
   // window rather than the -18° faint-object window, so high-latitude
   // summer doesn't mislabel Venus/Jupiter as unobservable. The Dark/Dawn
   // rows and altitude graph stay astronomical (-18°) for the faint stuff.
   const { nightStart, nightEnd, hasTrueDark } = getTwilightWindow(date, -12);
-  let peakAlt = -Infinity;
+  let peakAlt = -90;
   for (let t = new Date(nightStart); t <= nightEnd; t = new Date(t.getTime() + 30 * 60000)) {
     try {
       const alt = planetAltitude(planetName, t.getHours() + t.getMinutes() / 60, t);
@@ -110,11 +112,11 @@ function getVisibility(rts, planetName, date) {
     } catch(e) {}
   }
 
-  if (!hasTrueDark)  return { label:'No Dark Sky',   cls:'badge-poor'  };
-  if (peakAlt >= 30) return { label:'Prime Viewing', cls:'badge-good'  };
-  if (peakAlt >= 15) return { label:'Visible',       cls:'badge-ok'    };
-  if (peakAlt >  0)  return { label:'Low Sky',       cls:'badge-poor'  };
-  return               { label:'Below Horizon',       cls:'badge-below' };
+  if (!hasTrueDark)  return { label:'No Dark Sky',   cls:'badge-poor',  peakAlt };
+  if (peakAlt >= 30) return { label:'Prime Viewing', cls:'badge-good',  peakAlt };
+  if (peakAlt >= 15) return { label:'Visible',       cls:'badge-ok',    peakAlt };
+  if (peakAlt >  0)  return { label:'Low Sky',       cls:'badge-poor',  peakAlt };
+  return               { label:'Below Horizon',       cls:'badge-below', peakAlt };
 }
 
 
@@ -162,11 +164,9 @@ function renderPlanets() {
       visiblePlanets.push(planet);
     } else {
       timesHTML = `<span>&#x1F305; ${rts.riseStr}</span><span>&#x1F31F; ${rts.transitStr}</span><span>&#x1F307; ${rts.setStr}</span>`;
-      const observer       = new Astronomy.Observer(State.obsLat, State.obsLon, 0);
-      const riseTime       = Astronomy.SearchRiseSet(Astronomy.Body[planet.name], observer, +1, midnight, 1)?.date;
-      const setTime        = Astronomy.SearchRiseSet(Astronomy.Body[planet.name], observer, -1, midnight, 1)?.date;
-      const upDuringNight  = (riseTime && riseTime < nightEnd) || (setTime && setTime > nightStart);
-      if (upDuringNight) visiblePlanets.push(planet);
+      // Graph membership follows the badge's peak altitude, so the badge
+      // and the chart below it never disagree about a planet.
+      if (vis.peakAlt > 0) visiblePlanets.push(planet);
     }
 
     const details = rts.neverRises ? null : getPlanetDetails(planet.name, rts.transit ?? new Date());

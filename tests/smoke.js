@@ -288,6 +288,10 @@ const visMidsummer = vm.runInContext(`
 `, sandbox);
 check('Visibility: 52°N planet badge is altitude-based, never "No Dark Sky" when nautical dark exists',
   visMidsummer.label !== 'No Dark Sky', JSON.stringify(visMidsummer));
+// The badge's peak altitude is also what decides altitude-graph
+// membership, so badge and graph can never disagree about a planet.
+check('Visibility: returns numeric peakAlt for graph membership',
+  typeof visMidsummer.peakAlt === 'number', JSON.stringify(visMidsummer));
 vm.runInContext('State.obsLat = 45.4215; State.obsLon = -75.6972;', sandbox); // restore
 
 // ── Lunar photo data consistency ─────────────────────────────────────────
