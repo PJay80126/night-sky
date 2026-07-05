@@ -76,14 +76,29 @@ function _manualCoords() {
     ? { lat, lon } : null;
 }
 
+// Clears cached tab computations when the observer has moved far enough
+// (> 0.5°, the forecast-cache tolerance) that stored altitudes, windows
+// and forecasts are stale — e.g. a GPS refresh after driving to a dark
+// site. typeof guards keep this callable before the tab scripts load.
+function _handleLocationChange(prevLat, prevLon) {
+  if (prevLat == null || prevLon == null) return;
+  if (Math.abs(State.obsLat - prevLat) <= 0.5 && Math.abs(State.obsLon - prevLon) <= 0.5) return;
+  State.planetsLoaded  = false;
+  State.forecastLoaded = false;
+  if (typeof _messierLoaded !== 'undefined') _messierLoaded = false;
+  if (typeof _eventsLoaded  !== 'undefined') _eventsLoaded  = false;
+}
+
 // Geolocation first; previously saved manual coordinates as the fallback
 // when the API is missing, denied, or times out.
 function getLocation(onSuccess, onFail) {
+  const prevLat = State.obsLat, prevLon = State.obsLon;
   const useManual = () => {
     const m = _manualCoords();
     if (!m) return false;
     State.obsLat = m.lat; State.obsLon = m.lon;
     State.locationSource = 'manual';
+    _handleLocationChange(prevLat, prevLon);
     onSuccess();
     return true;
   };
@@ -93,6 +108,7 @@ function getLocation(onSuccess, onFail) {
       State.obsLat = pos.coords.latitude;
       State.obsLon = pos.coords.longitude;
       State.locationSource = 'gps';
+      _handleLocationChange(prevLat, prevLon);
       onSuccess();
     },
     () => { if (!useManual()) onFail(); },
@@ -111,8 +127,10 @@ function setManualLocation(tabName) {
   }
   localStorage.setItem('nightsky.manualLat', String(lat));
   localStorage.setItem('nightsky.manualLon', String(lon));
+  const prevLat = State.obsLat, prevLon = State.obsLon;
   State.obsLat = lat; State.obsLon = lon;
   State.locationSource = 'manual';
+  _handleLocationChange(prevLat, prevLon);
   retryLocation(tabName);
 }
 

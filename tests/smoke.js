@@ -123,6 +123,33 @@ _store.delete('nightsky.manualLat');
 _store.delete('nightsky.manualLon');
 vm.runInContext('State.obsLat = 45.4215; State.obsLon = -75.6972;', sandbox); // restore
 
+// ── Location change invalidates cached tab computations ─────────────────
+// Altitudes/windows computed for the old spot go stale when the observer
+// moves > 0.5° (same tolerance as the forecast cache) — e.g. a GPS refresh
+// after driving to a dark site.
+sandbox.navigator.geolocation = {
+  getCurrentPosition: (ok) => ok({ coords: { latitude: 46.5, longitude: -75.6972 } }),
+};
+vm.runInContext(`
+  State.planetsLoaded = true; State.forecastLoaded = true;
+  _messierLoaded = true; getLocation(() => {}, () => {});
+`, sandbox);
+check('LocationChange: >0.5° move clears planets/forecast/messier guards',
+  vm.runInContext('!State.planetsLoaded && !State.forecastLoaded && !_messierLoaded', sandbox) === true,
+  vm.runInContext('JSON.stringify({p:State.planetsLoaded, f:State.forecastLoaded, m:_messierLoaded})', sandbox));
+sandbox.navigator.geolocation = {
+  getCurrentPosition: (ok) => ok({ coords: { latitude: 46.6, longitude: -75.6972 } }),
+};
+vm.runInContext(`
+  State.planetsLoaded = true; State.forecastLoaded = true;
+  _messierLoaded = true; getLocation(() => {}, () => {});
+`, sandbox);
+check('LocationChange: small move (<0.5°) keeps cached computations',
+  vm.runInContext('State.planetsLoaded && State.forecastLoaded && _messierLoaded', sandbox) === true,
+  vm.runInContext('JSON.stringify({p:State.planetsLoaded, f:State.forecastLoaded, m:_messierLoaded})', sandbox));
+delete sandbox.navigator.geolocation;
+vm.runInContext('State.obsLat = 45.4215; State.obsLon = -75.6972; State.planetsLoaded = false; State.forecastLoaded = false; _messierLoaded = false;', sandbox);
+
 // ── Forecast cache round-trip ───────────────────────────────────────────
 check('Cache: empty -> null', vm.runInContext('_readForecastCache()', sandbox) === null);
 _store.set('nightsky.fcCache', JSON.stringify({ ts: 123, lat: 10, lon: 10, data: { hourly: { time: [] } } }));
