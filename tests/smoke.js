@@ -28,10 +28,12 @@ function mkEl() {
   };
 }
 const _store = new Map();
+const _els = {};          // per-id element registry so style/attr writes are observable
+const _winHandlers = {};  // window-level listeners captured for tests (resize, load)
 const sandbox = {
   console,
   document: {
-    getElementById: () => mkEl(),
+    getElementById: (id) => (_els[id] ??= mkEl()),
     querySelector: () => null,
     querySelectorAll: () => [],
     addEventListener: () => {},
@@ -44,14 +46,15 @@ const sandbox = {
     setItem: (k, v) => _store.set(k, String(v)),
     removeItem: (k) => _store.delete(k),
   },
-  addEventListener: () => {},          // window-level (window === sandbox)
+  addEventListener: (type, fn) => { _winHandlers[type] = fn; }, // window-level (window === sandbox)
   requestAnimationFrame: (cb) => cb(), // immediate, so scheduled redraws run inline
   setInterval: () => 0,
-  setTimeout: () => 0,
+  setTimeout: (cb) => { cb(); return 0; }, // immediate, so debounced handlers run inline
+  clearTimeout: () => {},
 };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['astronomy.browser.js', 'js/state.js', 'js/moon.js', 'js/messier.js', 'js/planets.js', 'js/forecast.js']) {
+for (const f of ['astronomy.browser.js', 'js/state.js', 'js/moon.js', 'js/messier.js', 'js/planets.js', 'js/events.js', 'js/forecast.js']) {
   vm.runInContext(read(f), sandbox, { filename: f });
 }
 vm.runInContext('State.obsLat = 45.4215; State.obsLon = -75.6972;', sandbox); // Ottawa
@@ -286,6 +289,60 @@ const visMidsummer = vm.runInContext(`
 check('Visibility: 52°N planet badge is altitude-based, never "No Dark Sky" when nautical dark exists',
   visMidsummer.label !== 'No Dark Sky', JSON.stringify(visMidsummer));
 vm.runInContext('State.obsLat = 45.4215; State.obsLon = -75.6972;', sandbox); // restore
+
+// ── Sky events ───────────────────────────────────────────────────────────
+// Elongation events must name the sky the library says the apparition
+// belongs to — the old ternary on el.elongation (always positive) labelled
+// every apparition "evening".
+const elongCheck = vm.runInContext(`
+  (() => {
+    const out = [];
+    for (const ev of computeSkyEvents()) {
+      if (!ev.title.includes('Greatest Elongation')) continue;
+      const pname = ev.title.split(' ')[0];
+      const el = Astronomy.SearchMaxElongation(Astronomy.Body[pname], new Date(ev.date.getTime() - 5 * 86400000));
+      out.push({ title: ev.title, date: ev.date, expected: el.visibility,
+                 ok: ev.desc.includes(el.visibility + ' sky visibility') });
+    }
+    return out;
+  })()
+`, sandbox);
+check('Events: elongation desc names the correct sky (morning vs evening)',
+  elongCheck.length > 0 && elongCheck.every(x => x.ok), JSON.stringify(elongCheck));
+
+// Conjunction dedupe: one event per contiguous sub-threshold stretch, at
+// its minimum-separation sample (slow pairs like Jupiter–Saturn can sit
+// under 2.5° for weeks).
+const sepRuns = vm.runInContext(`
+  typeof _minSepRuns === 'function' ? _minSepRuns([
+    { date: new Date(2026, 0, 1),  sep: 3.0 },
+    { date: new Date(2026, 0, 4),  sep: 2.0 },
+    { date: new Date(2026, 0, 7),  sep: 1.1 },
+    { date: new Date(2026, 0, 10), sep: 2.2 },
+    { date: new Date(2026, 0, 13), sep: 4.0 },
+    { date: new Date(2026, 0, 16), sep: 2.4 },
+  ], 2.5) : null
+`, sandbox);
+check('Events: contiguous sub-threshold run collapses to its minimum-separation sample',
+  sepRuns && sepRuns.length === 2 && sepRuns[0].sep === 1.1 && sepRuns[1].sep === 2.4,
+  JSON.stringify(sepRuns));
+
+// A failed compute must leave the tab retryable.
+const retryCheck = vm.runInContext(`
+  (() => {
+    _eventsLoaded = false;
+    const orig = computeSkyEvents;
+    computeSkyEvents = () => { throw new Error('boom'); };
+    loadEvents();
+    const afterFail = _eventsLoaded;
+    computeSkyEvents = orig;
+    loadEvents();
+    return { afterFail, afterRetry: _eventsLoaded, count: _allEvents.length };
+  })()
+`, sandbox);
+check('Events: failed compute leaves the tab retryable; retry then succeeds',
+  retryCheck.afterFail === false && retryCheck.afterRetry === true && retryCheck.count > 0,
+  JSON.stringify(retryCheck));
 
 // ── getDewRisk ──────────────────────────────────────────────────────────
 const dawnCollapse = vm.runInContext(`getDewRisk([...Array.from({length:8},(_,i)=>({tmp:15-i, dewp:7})), {tmp:7.5, dewp:7}])`, sandbox);

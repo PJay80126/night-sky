@@ -27,6 +27,22 @@ const PLANET_ICONS = {
   Mercury:'☿', Venus:'♀', Mars:'♂', Jupiter:'♃', Saturn:'♄', Uranus:'⛢', Neptune:'♆',
 };
 
+// Collapses samples to one entry per contiguous run below `threshold`,
+// keeping the minimum-separation sample of each run. A slow conjunction
+// (e.g. Jupiter–Saturn) can sit under threshold for weeks — that is one
+// event at closest approach, not one every few days.
+function _minSepRuns(samples, threshold) {
+  const out = [];
+  let best = null;
+  for (const s of samples) {
+    if (s.sep < threshold) {
+      if (!best || s.sep < best.sep) best = s;
+    } else if (best) { out.push(best); best = null; }
+  }
+  if (best) out.push(best);
+  return out;
+}
+
 function computeSkyEvents() {
   const events = [];
   const now    = today();
@@ -80,10 +96,11 @@ function computeSkyEvents() {
         const d = el.time.date;
         if (d > end) break;
         if (d >= now) {
-          const dir = el.elongation > 0 ? 'Evening' : 'Morning';
-          const deg = Math.abs(el.elongation).toFixed(1);
+          // el.elongation is an angle in [0,180] — the apparition's sky is
+          // in el.visibility ('morning' | 'evening').
+          const deg = el.elongation.toFixed(1);
           events.push({ date:d, title:`${pname} Greatest Elongation`, icon:PLANET_ICONS[pname],
-            desc:`${pname} reaches maximum separation from the Sun (${deg}°) — best ${dir.toLowerCase()} sky visibility`,
+            desc:`${pname} reaches maximum separation from the Sun (${deg}°) — best ${el.visibility} sky visibility`,
             type:'planet', key:'elong-'+pname+attempt });
         }
         search = new Date(d.getTime() + 20 * 86400000);
@@ -91,30 +108,28 @@ function computeSkyEvents() {
     } catch(e) {}
   }
 
-  // 4. Conjunctions between bright planets
+  // 4. Conjunctions between bright planets. AngleBetween gives the true
+  // angular separation — immune to the RA 0h/24h wrap and the cos(dec)
+  // foreshortening a raw RA/Dec Pythagoras suffers from.
   const conjPairs = [
     ['Venus','Mars'],['Venus','Jupiter'],['Venus','Saturn'],
     ['Mars','Jupiter'],['Mars','Saturn'],['Jupiter','Saturn'],
   ];
   for (const [a, b] of conjPairs) {
     try {
+      const samples = [];
       for (let dayOffset = 0; dayOffset < 90; dayOffset += 3) {
         const d = new Date(now.getTime() + dayOffset * 86400000);
         if (d > end) break;
-        const obsNull = new Astronomy.Observer(0, 0, 0);
-        const eqA = Astronomy.Equator(Astronomy.Body[a], d, obsNull, false, true);
-        const eqB = Astronomy.Equator(Astronomy.Body[b], d, obsNull, false, true);
-        const dRa = (eqA.ra - eqB.ra) * 15;
-        const dDec = eqA.dec - eqB.dec;
-        const sep  = Math.sqrt(dRa * dRa + dDec * dDec);
-        if (sep < 2.5) {
-          const alreadyAdded = events.some(e => e.key === 'conj-'+a+b && Math.abs(e.date - d) < 5 * 86400000);
-          if (!alreadyAdded) {
-            events.push({ date:d, title:`${a} & ${b} Conjunction`, icon:'🌟',
-              desc:`${a} and ${b} appear just ${sep.toFixed(1)}° apart in the sky — striking in binoculars`,
-              type:'planet', key:'conj-'+a+b });
-          }
-        }
+        const sep = Astronomy.AngleBetween(
+          Astronomy.GeoVector(Astronomy.Body[a], d, true),
+          Astronomy.GeoVector(Astronomy.Body[b], d, true));
+        samples.push({ date: d, sep });
+      }
+      for (const hit of _minSepRuns(samples, 2.5)) {
+        events.push({ date:hit.date, title:`${a} & ${b} Conjunction`, icon:'🌟',
+          desc:`${a} and ${b} appear just ${hit.sep.toFixed(1)}° apart in the sky — striking in binoculars`,
+          type:'planet', key:'conj-'+a+b+'-'+hit.date.getTime() });
       }
     } catch(e) {}
   }
@@ -230,9 +245,9 @@ function renderEventsList() {
 
 function loadEvents() {
   if (_eventsLoaded) return;
-  _eventsLoaded = true;
   try {
     _allEvents = computeSkyEvents();
+    _eventsLoaded = true;   // only after a successful compute, so a failure stays retryable
     renderEventsList();
     getLocation(
       () => enrichEventsWithVisibility(),
