@@ -387,13 +387,29 @@ function computeTransparency(nightHrs) {
   return { ...bucket, text, score, hasUpperAir: rh500 != null };
 }
 
-function getDewRisk(rh) {
-  if (rh === null || rh === undefined) return { label:'Unknown', cls:'warn', text:'No humidity data' };
-  const r = parseFloat(rh);
-  if (r < 50) return { label:'Low',       cls:'good', text:`${Math.round(r)}% RH` };
-  if (r < 70) return { label:'Moderate',  cls:'warn', text:`${Math.round(r)}% RH` };
-  if (r < 85) return { label:'High',      cls:'warn', text:`${Math.round(r)}% RH — monitor optics` };
-  return             { label:'Very High', cls:'poor', text:`${Math.round(r)}% RH — dew likely` };
+// Dew risk peaks near dawn as the temp–dew spread bottoms out, so score
+// the nightly MINIMUM spread rather than a whole-night median (which
+// under-reports the pre-dawn RH maximum). Falls back to peak RH when
+// spread data is missing; thresholds there are shifted up versus the old
+// median-RH cutoffs because a peak statistic runs higher by construction.
+function getDewRisk(nightHrs) {
+  const spreads = nightHrs
+    .map(h => (h.tmp != null && h.dewp != null) ? h.tmp - h.dewp : null)
+    .filter(v => v != null);
+  if (spreads.length) {
+    const minSpread = Math.min(...spreads);
+    const txt = `min spread ${minSpread.toFixed(1)}°C`;
+    if (minSpread > 5) return { label:'Low',       cls:'good', text: txt };
+    if (minSpread > 3) return { label:'Moderate',  cls:'warn', text: txt };
+    if (minSpread > 1) return { label:'High',      cls:'warn', text:`${txt} — monitor optics` };
+    return                    { label:'Very High', cls:'poor', text:`${txt} — dew likely` };
+  }
+  const rhPeak = forecastMax(nightHrs, 'rh');
+  if (rhPeak == null)  return { label:'Unknown',   cls:'warn', text:'No humidity data' };
+  if (rhPeak < 70)     return { label:'Low',       cls:'good', text:`peak ${Math.round(rhPeak)}% RH` };
+  if (rhPeak < 85)     return { label:'Moderate',  cls:'warn', text:`peak ${Math.round(rhPeak)}% RH` };
+  if (rhPeak < 95)     return { label:'High',      cls:'warn', text:`peak ${Math.round(rhPeak)}% RH — monitor optics` };
+  return                      { label:'Very High', cls:'poor', text:`peak ${Math.round(rhPeak)}% RH — dew likely` };
 }
 
 function drawCloudChart(canvasId, nightHrs) {
@@ -839,7 +855,7 @@ function renderForecast() {
       const tmrwOutlook  = getOutlook(tmrwHrs);
       const seeing       = computeSeeing(nightHrs);
       const transparency = computeTransparency(nightHrs);
-      const dew          = getDewRisk(medians.rh);
+      const dew          = getDewRisk(nightHrs);
 
       // Current hour — data point closest to right now
       const nowMs     = Date.now();
