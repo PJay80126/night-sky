@@ -146,7 +146,7 @@ function getOutlook(nightHours) {
   const sorted = [...clouds].sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)];
 
-  let base =
+  const base =
     median <= 10 ? { icon:'⭐', label:'Clear',         sub:'Excellent — minimal cloud cover expected',   cls:'clear'        } :
     median <= 30 ? { icon:'🌙', label:'Mostly Clear',  sub:'Good — occasional cloud possible',          cls:'mostly-clear' } :
     median <= 55 ? { icon:'⛅', label:'Partly Cloudy', sub:'Mixed — intermittent cloud cover',          cls:'partly'       } :
