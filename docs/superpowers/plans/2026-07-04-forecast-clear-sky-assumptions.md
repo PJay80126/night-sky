@@ -252,6 +252,75 @@ git commit -m "fix(forecast): use real nautical-twilight window instead of fixed
 
 ---
 
+### Task 3b: Fix stale "18:00–06:00" label in the Outlook card
+
+**Added during implementation:** the Task 3 code-quality review found that `buildOutlookHTML()`'s card label hardcodes the literal string `"Tonight's Outlook · 18:00–06:00 ${tzLabel}"` (`js/forecast.js`, in `buildOutlookHTML`). Once Task 3 makes the underlying window a real nautical-twilight range, this label becomes actively misleading — e.g. it might say "18:00–06:00" while the badge above it is really scored over a 21:15–04:50 window. This wasn't caught during design because the original plan only asked for the *filtering* logic to change, not the display string; it's a direct consequence of Task 3, so it's fixed here rather than shipped as a known inaccuracy.
+
+**Files:**
+- Modify: `js/forecast.js` (`buildOutlookHTML` function and its call site)
+
+- [ ] **Step 1: Make the Outlook card label reflect the real window**
+
+Change `buildOutlookHTML`'s signature to accept the night-hours array, and derive the displayed clock range from the first/last hour actually used (already computed via the real twilight window in Task 3):
+
+```js
+/** Builds the "Tonight's Outlook" card HTML. */
+function buildOutlookHTML(outlook, medians, tzLabel, nightHrs) {
+  const fmt1 = v => v !== null ? Math.round(v) + '%'  : '—';
+  const fmtT = v => v !== null ? Math.round(v) + '°C' : '—';
+  const fmtW = v => v !== null ? (parseFloat(v) / 3.6).toFixed(1) + ' m/s' : '—';
+  const fmtClock = d => d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false });
+  const windowLabel = nightHrs.length
+    ? `${fmtClock(nightHrs[0].time)}–${fmtClock(nightHrs[nightHrs.length - 1].time)}`
+    : '18:00–06:00';
+
+  return `
+    <div class="fc-outlook-card">
+      <div class="fc-outlook-row">
+        <div class="fc-outlook-icon">${outlook.icon}</div>
+        <div class="fc-outlook-text">
+          <div class="fc-outlook-label">Tonight's Outlook · ${windowLabel} ${tzLabel}</div>
+          <div class="fc-outlook-value ${outlook.cls}">${outlook.label}</div>
+          <div class="fc-outlook-sub">${outlook.sub}</div>
+        </div>
+      </div>
+      <div class="fc-stats-grid">
+        <div class="fc-stat-box"><div class="fc-stat-label">Cloud</div><div class="fc-stat-value">${fmt1(medians.tcdc)}</div><div class="fc-stat-sub">median tonight</div></div>
+        <div class="fc-stat-box"><div class="fc-stat-label">Temp</div><div class="fc-stat-value">${fmtT(medians.tmp)}</div><div class="fc-stat-sub">2 m above ground</div></div>
+        <div class="fc-stat-box"><div class="fc-stat-label">Humidity</div><div class="fc-stat-value">${fmt1(medians.rh)}</div><div class="fc-stat-sub">relative humidity</div></div>
+        <div class="fc-stat-box"><div class="fc-stat-label">Wind</div><div class="fc-stat-value">${fmtW(medians.wspd)}</div><div class="fc-stat-sub">10 m surface wind</div></div>
+      </div>
+    </div>`;
+}
+```
+
+Update the one call site inside `renderForecast()` from:
+
+```js
+buildOutlookHTML(outlook, medians, tzLabel) +
+```
+
+to:
+
+```js
+buildOutlookHTML(outlook, medians, tzLabel, nightHrs) +
+```
+
+(`nightHrs` is already an in-scope local in `renderForecast()` — it's the same array `getForecastNightHours()` returned, already used for `medians`, `outlook`, `computeSeeing`, etc.)
+
+- [ ] **Step 2: Verify**
+
+Serve the app locally, open the Forecast tab, and confirm the "Tonight's Outlook" card's label now shows a real clock range (e.g. "21:15–04:50 EDT") instead of the literal "18:00–06:00" string, and that it's consistent with the `getTwilightWindow(new Date(), -12)` values you'd get from the console. Confirm the "Tomorrow Night" card (which doesn't use `buildOutlookHTML`'s label — check `buildTomorrowCardHTML` isn't affected) still renders correctly since it's a separate template.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add js/forecast.js
+git commit -m "fix(forecast): show real twilight window in Outlook card label instead of hardcoded 18:00-06:00"
+```
+
+---
+
 ### Task 4: Outlook variability + precipitation cross-check
 
 **Files:**
