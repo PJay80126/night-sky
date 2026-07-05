@@ -641,6 +641,12 @@ function forecastMedian(arr, key) {
   return s[Math.floor(s.length / 2)];
 }
 
+/** Returns the maximum value of a numeric field across an array of hour objects. */
+function forecastMax(arr, key) {
+  const vals = arr.map(h => h[key]).filter(v => v !== null && v !== undefined);
+  return vals.length ? Math.max(...vals) : null;
+}
+
 /** Builds the "Current Conditions" card HTML. */
 function buildCurrentConditionsHTML(currentHr) {
   const fmtTmp = v => v !== null && v !== undefined ? Math.round(v) + '°C' : '—';
