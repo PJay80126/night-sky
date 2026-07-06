@@ -1,4 +1,4 @@
-const CACHE = 'night-sky-v54';
+const CACHE = 'night-sky-v55';
 // Cross-context state for nightly notifications (written by forecast.js,
 // read here). NOT a versioned asset cache — must survive activate cleanup.
 const NOTIFY_CACHE = 'night-sky-notify';
@@ -27,7 +27,14 @@ const ASSETS = [
   'fonts/crimson-pro-v28-latin-italic.woff2',
   'fonts/crimson-pro-v28-latin-regular.woff2',  
   'photos/Apennine_Mountains_Archimedes_and_Eratosthenes.png',
+  'photos/Aristarchus.png',
   'photos/Aristoteles_Eudoxus_Alpine_Valley_Alps_Mountains_Cassini_Caucasus_Mountains_Aristillus_Autolycus_and_Plato.png',
+  'photos/Bullialdus.png',
+  'photos/Kepler.png',
+  'photos/Maurolycus.png',
+  'photos/Schickard.png',
+  'photos/Schiller.png',
+  'photos/Timocharis.png',
   'photos/Bessel_Haemus_Mountains_and_Manilius.png',
   'photos/Carpathian_Mountains_Copernicus_Reinhold_and_Lansberg.png',
   'photos/Cleomedes_Newcomb_Macrobius_and_Taurus_Mountains.png',

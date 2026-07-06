@@ -312,6 +312,29 @@ check('Photos: map values, captions, and composite maria features all consistent
   photoConsistency.unmapped.length === 0,
   JSON.stringify(photoConsistency));
 
+// Features with a dedicated (same-named) photo on disk must use it, with a
+// caption — these seven shipped in photos/ but were never reachable.
+const standalonePhotos = vm.runInContext(`
+  (() => {
+    const out = [];
+    for (const n of ['Kepler', 'Schiller', 'Aristarchus', 'Schickard', 'Maurolycus', 'Timocharis', 'Bullialdus']) {
+      const ok = FEATURE_IMAGE_MAP[n] === n && !!PHOTO_DATA[n] && !!PHOTO_CAPTIONS[n];
+      if (!ok) out.push(n);
+    }
+    return out;
+  })()
+`, sandbox);
+check('Photos: standalone crater photos are mapped to their own features',
+  standalonePhotos.length === 0, JSON.stringify(standalonePhotos));
+
+// Every photo the app can display must be precached — the offline rules
+// require the sw.js ASSETS list to be complete.
+const photoPaths = vm.runInContext('Object.values(PHOTO_DATA)', sandbox);
+const swText = read('sw.js');
+const uncachedPhotos = [...new Set(photoPaths)].filter(p => !swText.includes(`'${p}'`));
+check('Photos: every PHOTO_DATA file is in the service-worker ASSETS list',
+  uncachedPhotos.length === 0, JSON.stringify(uncachedPhotos));
+
 // ── Messier scope-input debounce ─────────────────────────────────────────
 // oninput fires per keystroke; a synchronous 110-row rebuild each time
 // makes typing laggy — the rerender must be debounced.
